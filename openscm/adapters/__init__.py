@@ -28,6 +28,9 @@ def load_adapter(name: str) -> Adapter:
         return _loaded_adapters[name]
     else:
         adapter = None
+        if name == "DICE":
+            from .dice import DICE
+            adapter = DICE
 
         """
         When implementing an additional adapter, include your adapter NAME here as:
