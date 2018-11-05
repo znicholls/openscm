@@ -56,4 +56,5 @@ setup(
             "numpy",
         ],
     },
+    entry_points={"console_scripts": ["openscm = openscm.cli:main"]},
 )
