@@ -1,7 +1,6 @@
 """
 All model adapters in OpenSCM are implemented as subclasses of the
 :class:`openscm.adapter.Adapter` base class.
-
 :ref:`writing-adapters` provides a howto on implementing an adapter.
 """
 
@@ -38,7 +37,6 @@ class Adapter():
     Beginning of the time range to run over (seconds since
     ``1970-01-01 00:00:00``)
     """
-
     def __init__(self, parameters: ParameterSet):
         """
         Initialize.
@@ -86,7 +84,6 @@ class Adapter():
         to `step`.
         """
         self._current_time = self._start_time
-
     def run(self) -> None:
         """
         Run the model over the full time range.
@@ -96,7 +93,6 @@ class Adapter():
     def step(self) -> int:
         """
         Do a single time step.
-
         Returns
         -------
         int

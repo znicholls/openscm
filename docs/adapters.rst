@@ -9,7 +9,7 @@ adapters:
 +--------------------------------------------------------------------+-----------+----------+---------------------------------------------------------------------------------------------------------+
 | Model name                                                         | Stepwise? | Regions? | Comment                                                                                                 |
 +====================================================================+===========+==========+=========================================================================================================+
-| `DICE <https://sites.google.com/site/williamdnordhaus/dice-rice>`_ | no        | no       | | Climate component from the Dynamic Integrated                                                         |
+| `DICE <https://sites.google.com/site/williamdnordhaus/dice-rice>`_ | yes       | no       | | Climate component from the Dynamic Integrated                                                         |
 |                                                                    |           |          | | Climate-Economy (DICE) model by `William Nordhaus <https://sites.google.com/site/williamdnordhaus/>`_ |
 +--------------------------------------------------------------------+-----------+----------+---------------------------------------------------------------------------------------------------------+
 
