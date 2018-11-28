@@ -1,18 +1,25 @@
+import re
+
+
 import pytest
+import pint
 
 
 from openscm.models import PH99Model
 
 
-ONE_YEAR = 60*60*24*365.25
+UREG = pint.UnitRegistry()
+yr = 1*UREG.year
+ONE_YEAR = yr.to("s")
+
 
 @pytest.fixture(scope="function")
 def ph_99():
     return PH99Model()
 
 def test_step_time(ph_99):
-    ph_99.time = [0, ONE_YEAR]
-    ph_99.now = 0
+    ph_99.time = [0*UREG.s, ONE_YEAR]
+    ph_99.now = ph_99.time[0]
 
     ph_99.step_time()
 
@@ -24,3 +31,5 @@ def test_step_time(ph_99):
     )
     with pytest.raises(AttributeError, match=error_msg):
         ph_99.step_time()
+
+# test time has wrong unit error
