@@ -5,6 +5,7 @@ venv: dev-requirements.txt setup.py
 	./venv/bin/pip install -e .[tests,docs,dev]
 	touch venv
 
+# what does a pipe in a makefile mean?
 test: | venv
 	./venv/bin/pytest -rfsxEX --cov=openscm tests
 
