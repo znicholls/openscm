@@ -9,7 +9,7 @@ import numpy as np
 
 
 from ..units import unit_registry
-from ..errors import OutOfTimeBoundsError
+from ..errors import OutOfTimeBoundsError, OverwriteError
 
 
 class PH99Model(object):
@@ -24,32 +24,45 @@ class PH99Model(object):
     foundations, Climatic Change, 41, 303–331, 1999.
     """
 
-    # TODO: decide whether we want int or float for time
     # TODO: check if there is there a way to specify type when we define the variables
     # like in a function signature?
-    time = [
-        np.nan
-    ] * unit_registry.s  # default has to be None, anything else doesn't make sense
-    """array of `pint.Quantity`: time axis in seconds since 1970-1-1"""
+    time = np.array([np.nan]) * unit_registry("s")
+    """`pint.Quantity` array: Time axis in seconds since 1970-1-1. Steps must match timestep"""
+    # TODO: check if this is the right way to describe such a type
+    # TODO: test timestep size checking
 
-    time_current = None  # default has to be None, anything else doesn't make sense
+    time_current = np.nan * unit_registry("s")
     """int: Current time in seconds since 1970-1-1"""
+
+    _yr = 1 * unit_registry("yr")
+    timestep = _yr.to("s")
+    """:obj:`pint.Quantity`: Size of timestep in seconds"""
+
+    emissions = np.array([np.nan]) * unit_registry("GtC/s")
+    """`pint.Quantity` array: Emissions of CO2 in GtC/s"""
+
+    cumulative_emissions = np.array([np.nan]) * unit_registry("GtC")
+    """`pint.Quantity` array: Cumulative emissions of CO2 in GtC"""
 
     @property
     def time_idx(self):
-        if self.time_current is None:
+        if np.isnan(self.time_current):
             return None
 
         return np.argmax(self.time == self.time_current)
 
-    def run(self, restart: bool) -> None:
+    def run(self, until=(2500-1970)*365*24*60*60*unit_registry("s"), restart=False) -> None:
         """Run the model
 
         Parameters
         ----------
-        restart
-            If True, run the model from the first timestep rather than from the value of self.time_current. This will overwrite any values which have already been
-            calculated.
+        until: :obj:`pint.Quantity`
+            Time to run until. Default value is 2500.
+
+        restart: bool
+            If True, run the model from the first timestep rather than from the value
+            of `self.time_current`. This will overwrite any values which have already
+            been calculated.
         """
         # super nice that we don't have to write type in docstring when the type is in the function signature
         pass
@@ -57,9 +70,9 @@ class PH99Model(object):
     def step(self) -> None:
         """Step the model forward to the next point in time"""
         self._step_time()
-        self._step_cumulative_emissions()
-        self._step_concentrations()
-        self._step_temperature()
+        self._update_cumulative_emissions()
+        self._update_concentrations()
+        self._update_temperature()
 
     def _step_time(self) -> None:
         try:
@@ -68,4 +81,33 @@ class PH99Model(object):
             raise OutOfTimeBoundsError(
                 "Cannot step time again as we are already at the last value in "
                 "self.time"
+            )
+
+    def _update_cumulative_emissions(self) -> None:
+        """Update the cumulative emissions"""
+        self._check_update_overwrite("cumulative_emissions")
+        self.cumulative_emissions[self.time_idx] = (
+            self.cumulative_emissions[self.time_idx - 1]
+            + self.emissions[self.time_idx] * self.timestep
+        )
+
+
+    def _check_update_overwrite(self, attribute_to_check) -> None:
+        """Check if updating the given array will overwrite existing data
+
+        Parameters
+        ----------
+        attribute_to_check: str
+            The attribute of self to check.
+
+        Raises
+        ------
+        OverwriteError
+            If updating the array stored in `attribute_to_check` will overwrite data
+            which has already been calculated.
+        """
+        array_to_check = self.__getattribute__(attribute_to_check)
+        if not np.isnan(array_to_check[self.time_idx]):
+            raise OverwriteError(
+                "Stepping {} will overwrite existing data".format(attribute_to_check)
             )
