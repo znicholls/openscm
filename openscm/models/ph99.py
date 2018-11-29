@@ -9,7 +9,7 @@ import numpy as np
 
 
 from ..units import unit_registry
-
+from ..errors import OutOfTimeBoundsError
 
 class PH99Model(object):
     """Simple climate model first presented in Petschel-Held Climatic Change 1999
@@ -31,6 +31,9 @@ class PH99Model(object):
     now = None  # default has to be None, anything else doesn't make sense
     """int: Current time in seconds since 1970-1-1"""
 
+    @property
+    def time_idx(self):
+        return np.argmax(self.time == self.now)
 
 
     def run(self, restart: bool) -> None:
@@ -47,12 +50,13 @@ class PH99Model(object):
 
     def step(self) -> None:
         """Step the model forward to the next point in time"""
-
-        # update current time
-        # step cumulative emissions
-        # step concentrations
-        # step temperature
-        pass
+        self.step_time()
+        self.step_cumulative_emissions()
+        self.step_concentrations()
+        self.step_temperature()
 
     def step_time(self) -> None:
-        self.now = self.time[self.time_idx+1]
+        try:
+            self.now = self.time[self.time_idx+1]
+        except IndexError:
+            raise OutOfTimeBoundsError("Cannot step time again as we are already at the last value in self.time")
