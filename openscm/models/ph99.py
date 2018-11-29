@@ -55,6 +55,9 @@ class PH99Model(object):
     concentrations = np.array([np.nan]) * unit_registry("ppm")
     """`pint.Quantity` array: Concentrations of CO2 in ppm"""
 
+    temperatures = unit_registry.Quantity(np.array([np.nan]), "degC")
+    """`pint.Quantity` array: Global-mean temperatures in degrees C"""
+
     b = 1.51 * 10**-3 * unit_registry("ppm / (GtC * yr)")
     """:obj:`pint.Quantity`: B parameter in ppm / (GtC yr)"""
 
@@ -69,11 +72,32 @@ class PH99Model(object):
 
     The characteristic response time of the carbon cycle.
     """
+    # TODO: check if you can put latex in docstrings
 
     c1 = 290 * unit_registry("ppm")
     """:obj:`pint.Quantity`: C1 parameter in ppm
 
     The pre-industrial CO2 concentration.
+    """
+
+    mu = unit_registry.Quantity(8.7 * 10**-2, "degC/yr")
+    """:obj:`pint.Quantity`: mu parameter in degrees C / yr
+
+    This is like a scaling factor of the radiative forcing due to CO2 but has
+    different units as it is used directly in a temperature response equation rather
+    than an energy balance equation.
+    """
+
+    alpha = 1.7 * 10**-2 * unit_registry("1/yr")
+    """:obj:`pint.Quantity`: alpha parameter in yr^-1
+
+    The characteristic response time of global-mean temperatures.
+    """
+
+    t1 = unit_registry.Quantity(14.6, "degC")
+    """:obj:`pint.Quantity`: T1 parameter in degrees C
+
+    The pre-industrial global-mean temperature.
     """
 
     @property

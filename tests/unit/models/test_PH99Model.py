@@ -132,6 +132,26 @@ def test_update_concentrations(ph99):
 
 
 def test_update_temperature(ph99):
+    ttimestep = 1 * unit_registry("yr")
+    ph99.timestep = ttimestep
+
+    tmu = unit_registry.Quantity(8.6 * 10**-2, "degC/yr")
+    ph99.mu = tmu
+
+    tc1 = 289 * unit_registry("ppm")
+    ph99.c1 = tc1
+
+    tconcentrations = np.array([300, np.nan]) * unit_registry("ppm")
+    ph99.concentrations = tconcentrations
+
+    talpha = 1.6 * 10**-2 * unit_registry("1/yr")
+    ph99.alpha = talpha
+
+    tt1 = unit_registry.Quantity(14.7, "degC")
+    ph99.t1 = tt1
+
+    ttemperatures = unit_registry.Quantity(np.array([14.5, np.nan]), "degC")
+    ph99.temperatures = ttemperatures
 
     ph99._check_update_overwrite = MagicMock()
 
@@ -142,7 +162,16 @@ def test_update_temperature(ph99):
     ph99.time_current = 1
 
     ph99._update_temperature()
+    grad = (
+        tmu * np.log(tconcentrations[0] / tc1)  # np.log is natural log
+        - talpha * (ttemperatures[0] - tt1)
+    )
+    expected_next_year_temp = ttemperatures[0] + grad * ttimestep
+
+    expected_magnitude = np.array([300, expected_next_year_temp.magnitude])
     # check if there's Pint testing which does this in one line for us
+    np.testing.assert_allclose(ph99.temperatures.magnitude, expected_magnitude)
+    assert ph99.temperatures.units == unit_registry("degC")
 
 
     ph99._check_update_overwrite.assert_called_with("temperature")
