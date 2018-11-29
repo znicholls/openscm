@@ -9,7 +9,7 @@ import numpy as np
 
 
 from ..units import unit_registry
-from ..errors import OutOfTimeBoundsError, OverwriteError
+from ..errors import OutOfBoundsError, OverwriteError
 
 
 class PH99Model(object):
@@ -34,10 +34,9 @@ class PH99Model(object):
 
     # TODO: check if there is there a way to specify type when we define the variables
     # like in a function signature?
-    time = np.array([np.nan]) * unit_registry("s")
-    """`pint.Quantity` array: Time axis in seconds since 1970-1-1. Steps must match timestep"""
-    # TODO: check if this is the right way to describe such a type
-    # TODO: test timestep size checking
+    time_start = np.nan * unit_registry("s")
+    """int: Start time of run in seconds since 1970-1-1"""
+    # TODO: decide if this seconds since business makes sense in a model
 
     time_current = np.nan * unit_registry("s")
     """int: Current time in seconds since 1970-1-1"""
@@ -45,6 +44,7 @@ class PH99Model(object):
     _yr = 1 * unit_registry("yr")
     timestep = _yr.to("s")
     """:obj:`pint.Quantity`: Size of timestep in seconds"""
+    # TODO: check if this is the right way to describe such a type
 
     emissions = np.array([np.nan]) * unit_registry("GtC/s")
     """`pint.Quantity` array: Emissions of CO2 in GtC/s"""
@@ -101,11 +101,32 @@ class PH99Model(object):
     """
 
     @property
-    def time_idx(self):
-        if np.isnan(self.time_current):
-            return None
+    def emissions_idx(self):
+        if any(np.isnan(self.emissions)):
+            raise ValueError("emissions have not been set yet")
 
-        return np.argmax(self.time == self.time_current)
+        res = (
+            (self.time_current - self.time_start)
+            / self.timestep
+        ).to_base_units().magnitude
+        assert res == int(res), "somehow you have reached a point in time which isn't a multiple of your timeperiod..."
+        res = int(res)
+        try:
+            self.emissions[res]
+        except IndexError:
+            error_msg = (
+                "No emissions data available for requested timestep.\n"
+                "Requested time: {}\n"
+                "Timestep index: {}\n"
+                "Length of emissions (remember Python is zero-indexed): {}\n".format(
+                    self.time_current,
+                    res,
+                    len(self.emissions)
+                )
+            )
+            raise OutOfBoundsError(error_msg)
+
+        return res
 
     def run(self, until=(2500-1970)*365*24*60*60*unit_registry("s"), restart=False) -> None:
         """Run the model
@@ -131,32 +152,26 @@ class PH99Model(object):
         self._update_temperatures()
 
     def _step_time(self) -> None:
-        try:
-            self.time_current = self.time[self.time_idx + 1]
-        except IndexError:
-            raise OutOfTimeBoundsError(
-                "Cannot step time again as we are already at the last value in "
-                "self.time"
-            )
+        self.time_current += self.timestep
 
     def _update_cumulative_emissions(self) -> None:
         """Update the cumulative emissions"""
         self._check_update_overwrite("cumulative_emissions")
-        self.cumulative_emissions[self.time_idx] = (
-            self.cumulative_emissions[self.time_idx - 1]
-            + self.emissions[self.time_idx - 1] * self.timestep
+        self.cumulative_emissions[self.emissions_idx] = (
+            self.cumulative_emissions[self.emissions_idx - 1]
+            + self.emissions[self.emissions_idx - 1] * self.timestep
         )
 
     def _update_concentrations(self) -> None:
         """Update the concentrations"""
         self._check_update_overwrite("concentrations")
         dcdt = (
-            self.b * self.cumulative_emissions[self.time_idx - 1]
-            + self.beta * self.emissions[self.time_idx - 1]
-            - self.sigma * (self.concentrations[self.time_idx - 1] - self.c1)
+            self.b * self.cumulative_emissions[self.emissions_idx - 1]
+            + self.beta * self.emissions[self.emissions_idx - 1]
+            - self.sigma * (self.concentrations[self.emissions_idx - 1] - self.c1)
         )
-        self.concentrations[self.time_idx] = (
-            self.concentrations[self.time_idx - 1]
+        self.concentrations[self.emissions_idx] = (
+            self.concentrations[self.emissions_idx - 1]
             + dcdt * self.timestep
         )
 
@@ -164,11 +179,11 @@ class PH99Model(object):
         """Update the concentrations"""
         self._check_update_overwrite("temperature")
         dtdt = (
-            self.mu * np.log(self.concentrations[self.time_idx - 1] / self.c1)
-            - self.alpha * (self.temperatures[self.time_idx - 1] - self.t1)
+            self.mu * np.log(self.concentrations[self.emissions_idx - 1] / self.c1)
+            - self.alpha * (self.temperatures[self.emissions_idx - 1] - self.t1)
         )
-        self.temperatures[self.time_idx] = (
-            self.temperatures[self.time_idx - 1]
+        self.temperatures[self.emissions_idx] = (
+            self.temperatures[self.emissions_idx - 1]
             + dtdt * self.timestep
         )
 
@@ -187,7 +202,7 @@ class PH99Model(object):
             which has already been calculated.
         """
         array_to_check = self.__getattribute__(attribute_to_check)
-        if not np.isnan(array_to_check[self.time_idx]):
+        if not np.isnan(array_to_check[self.emissions_idx]):
             raise OverwriteError(
                 "Stepping {} will overwrite existing data".format(attribute_to_check)
             )

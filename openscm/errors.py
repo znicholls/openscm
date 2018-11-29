@@ -1,7 +1,6 @@
-class OutOfTimeBoundsError(IndexError):
-    """Error raised when the user attempts to step a model beyond its time axis.
+class OutOfBoundsError(IndexError):
+    """Error raised when the user attempts to step a model beyond its input data range.
     """
-
     pass
 
 

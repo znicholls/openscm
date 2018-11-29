@@ -8,7 +8,7 @@ import pint
 
 
 from openscm.models import PH99Model
-from openscm.errors import OutOfTimeBoundsError, OverwriteError
+from openscm.errors import OutOfBoundsError, OverwriteError
 from openscm.units import unit_registry
 
 
@@ -22,46 +22,65 @@ def ph99():
 
 
 def test_step_time(ph99):
-    ph99.time = np.array([0, ONE_YEAR.magnitude]) * unit_registry.s
-    ph99.time_current = ph99.time[0]
+    ph99.timestep = 10 * unit_registry("s")
+    ph99.time_current = 100 * unit_registry("s")
 
     ph99._step_time()
 
-    assert ph99.time_current == ONE_YEAR
+    assert ph99.time_current.magnitude == 100 + ph99.timestep.magnitude
+    assert ph99.time_current.units == unit_registry("s")
 
 
-def test_step_time_out_of_bounds(ph99):
-    ph99.time = np.array([0, ONE_YEAR.magnitude]) * unit_registry.s
-    ph99.time_current = ph99.time[-1]
+def test_emissions_idx(ph99):
+    ph99.emissions = np.array([1, 2]) * unit_registry("GtC/yr")
+    ph99.timestep = 10 * unit_registry("s")
+    ph99.time_start = 10 * unit_registry("s")
+    ph99.time_current = ph99.time_start
+    assert ph99.emissions_idx == 0
 
+    ph99.time_current = ph99.time_start + ph99.timestep
+    assert ph99.emissions_idx == 1
+
+
+def test_emissions_unset(ph99):
     error_msg = re.escape(
-        "Cannot step time again as we are already at the last value in self.time"
+        "emissions have not been set yet"
     )
-    with pytest.raises(OutOfTimeBoundsError, match=error_msg):
-        ph99._step_time()
+    with pytest.raises(ValueError, match=error_msg):
+        ph99.emissions_idx
 
 
-def test_time_idx(ph99):
-    ph99.time = np.array([0, ONE_YEAR.magnitude]) * unit_registry.s
+def test_emissions_idx_out_of_bounds_error(ph99):
+    ph99.emissions = np.array([10]) * unit_registry("GtC/s")
+    ph99.timestep = 10 * unit_registry("s")
+    ph99.time_start = 10 * unit_registry("s")
+    ph99.time_current = ph99.time_start + ph99.timestep
 
-    ph99.time_current = ph99.time[0]
-    assert ph99.time_idx == 0
+    error_msg = (
+        re.escape("No emissions data available for requested timestep.") + "\n"
+        + re.escape("Requested time: {}".format(ph99.time_current)) + "\n"
+        + re.escape("Timestep index: 1") + "\n"
+        + re.escape("Length of emissions (remember Python is zero-indexed): 1") + "\n"
+    )
 
-    ph99.time_current = ph99.time[1]
-    assert ph99.time_idx == 1
+    re.escape(
+        "Cannot step again as we are already at the last value in emissions"
+    )
+    with pytest.raises(OutOfBoundsError, match=error_msg):
+        ph99.emissions_idx
 
 
 def test_update_cumulative_emissions(ph99):
+    ph99.timestep = 1 * unit_registry("yr")
     ph99.cumulative_emissions = np.array([0, np.nan]) * unit_registry("GtC")
     ph99.emissions = np.array([2, 10]) * unit_registry("GtC/yr")
-    ph99.timestep = 1 * unit_registry("yr")
     ph99._check_update_overwrite = MagicMock()
 
     # TODO: work out how to do this mocking, this can't be the easy way
-    # ph99.time_idx = MagicMock(return_value=1)
+    # ph99.emissions_idx = MagicMock(return_value=1)
     # temporary workaround
-    ph99.time = np.array([0, 1])
-    ph99.time_current = 1
+    ph99.time_start = 10 * unit_registry("s")
+    ph99.time_current = ph99.time_start + ph99.timestep
 
     ph99._update_cumulative_emissions()
 
@@ -104,10 +123,10 @@ def test_update_concentrations(ph99):
     ph99._check_update_overwrite = MagicMock()
 
     # TODO: work out how to do this mocking, this can't be the easy way
-    # ph99.time_idx = MagicMock(return_value=1)
+    # ph99.emissions_idx = MagicMock(return_value=1)
     # temporary workaround
-    ph99.time = np.array([0, 1])
-    ph99.time_current = 1
+    ph99.time_start = 10 * unit_registry("s")
+    ph99.time_current = ph99.time_start + ph99.timestep
 
     ph99._update_concentrations()
     # calculated from previous year values
@@ -159,10 +178,11 @@ def test_update_temperatures(ph99):
     ph99._check_update_overwrite = MagicMock()
 
     # TODO: work out how to do this mocking, this can't be the easy way
-    # ph99.time_idx = MagicMock(return_value=1)
+    # ph99.emissions_idx = MagicMock(return_value=1)
     # temporary workaround
-    ph99.time = np.array([0, 1])
-    ph99.time_current = 1
+    ph99.emissions = np.array([2, 10]) * unit_registry("GtC/yr")
+    ph99.time_start = 10 * unit_registry("s")
+    ph99.time_current = ph99.time_start + ph99.timestep
 
     ph99._update_temperatures()
     grad = (
@@ -184,10 +204,12 @@ def test_update_temperatures(ph99):
 
 def test_check_update_overwrite(ph99):
     # TODO: work out how to do this mocking
-    # ph99.time_idx = MagicMock(return_value=1)
+    # ph99.emissions_idx = MagicMock(return_value=1)
     # temporary workaround
-    ph99.time = np.array([0, 1])
-    ph99.time_current = 1
+    ph99.emissions = np.array([2, 10]) * unit_registry("GtC/yr")
+    ph99.timestep = 1 * unit_registry("yr")
+    ph99.time_start = 10 * unit_registry("s")
+    ph99.time_current = ph99.time_start + ph99.timestep
 
     ph99.cumulative_emissions = np.array([0, np.nan]) * unit_registry("GtC")
     # should pass without error
