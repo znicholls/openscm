@@ -34,12 +34,18 @@ class PH99Model(object):
 
     # TODO: check if there is there a way to specify type when we define the variables
     # like in a function signature?
-    time_start = np.nan * unit_registry("s")
+    time_start = 0 * unit_registry("s")
     """int: Start time of run in seconds since 1970-1-1"""
     # TODO: decide if this seconds since business makes sense in a model
 
-    time_current = np.nan * unit_registry("s")
-    """int: Current time in seconds since 1970-1-1"""
+    @property
+    def time_current(self):
+        """int: Current time in seconds since 1970-1-1"""
+        try:
+            return self._time_current
+        except AttributeError:
+            self._time_current = self.time_start
+            return self._time_current
 
     _yr = 1 * unit_registry("yr")
     timestep = _yr.to("s")
@@ -128,14 +134,11 @@ class PH99Model(object):
 
         return res
 
-    def run(self, until=(2500-1970)*365*24*60*60*unit_registry("s"), restart=False) -> None:
+    def run(self, restart=False) -> None:
         """Run the model
 
         Parameters
         ----------
-        until: :obj:`pint.Quantity`
-            Time to run until. Default value is 2500.
-
         restart: bool
             If True, run the model from the first timestep rather than from the value
             of `self.time_current`. This will overwrite any values which have already
@@ -152,7 +155,7 @@ class PH99Model(object):
         self._update_temperatures()
 
     def _step_time(self) -> None:
-        self.time_current += self.timestep
+        self._time_current += self.timestep
 
     def _update_cumulative_emissions(self) -> None:
         """Update the cumulative emissions"""

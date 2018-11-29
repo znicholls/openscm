@@ -23,7 +23,7 @@ def ph99():
 
 def test_step_time(ph99):
     ph99.timestep = 10 * unit_registry("s")
-    ph99.time_current = 100 * unit_registry("s")
+    ph99._time_current = 100 * unit_registry("s")
 
     ph99._step_time()
 
@@ -35,10 +35,10 @@ def test_emissions_idx(ph99):
     ph99.emissions = np.array([1, 2]) * unit_registry("GtC/yr")
     ph99.timestep = 10 * unit_registry("s")
     ph99.time_start = 10 * unit_registry("s")
-    ph99.time_current = ph99.time_start
+    ph99._time_current = ph99.time_start
     assert ph99.emissions_idx == 0
 
-    ph99.time_current = ph99.time_start + ph99.timestep
+    ph99._time_current = ph99.time_start + ph99.timestep
     assert ph99.emissions_idx == 1
 
 
@@ -54,11 +54,11 @@ def test_emissions_idx_out_of_bounds_error(ph99):
     ph99.emissions = np.array([10]) * unit_registry("GtC/s")
     ph99.timestep = 10 * unit_registry("s")
     ph99.time_start = 10 * unit_registry("s")
-    ph99.time_current = ph99.time_start + ph99.timestep
+    ph99._time_current = ph99.time_start + ph99.timestep
 
     error_msg = (
         re.escape("No emissions data available for requested timestep.") + "\n"
-        + re.escape("Requested time: {}".format(ph99.time_current)) + "\n"
+        + re.escape("Requested time: {}".format(ph99._time_current)) + "\n"
         + re.escape("Timestep index: 1") + "\n"
         + re.escape("Length of emissions (remember Python is zero-indexed): 1") + "\n"
     )
@@ -80,7 +80,7 @@ def test_update_cumulative_emissions(ph99):
     # ph99.emissions_idx = MagicMock(return_value=1)
     # temporary workaround
     ph99.time_start = 10 * unit_registry("s")
-    ph99.time_current = ph99.time_start + ph99.timestep
+    ph99._time_current = ph99.time_start + ph99.timestep
 
     ph99._update_cumulative_emissions()
 
@@ -126,7 +126,7 @@ def test_update_concentrations(ph99):
     # ph99.emissions_idx = MagicMock(return_value=1)
     # temporary workaround
     ph99.time_start = 10 * unit_registry("s")
-    ph99.time_current = ph99.time_start + ph99.timestep
+    ph99._time_current = ph99.time_start + ph99.timestep
 
     ph99._update_concentrations()
     # calculated from previous year values
@@ -182,7 +182,7 @@ def test_update_temperatures(ph99):
     # temporary workaround
     ph99.emissions = np.array([2, 10]) * unit_registry("GtC/yr")
     ph99.time_start = 10 * unit_registry("s")
-    ph99.time_current = ph99.time_start + ph99.timestep
+    ph99._time_current = ph99.time_start + ph99.timestep
 
     ph99._update_temperatures()
     grad = (
@@ -209,7 +209,7 @@ def test_check_update_overwrite(ph99):
     ph99.emissions = np.array([2, 10]) * unit_registry("GtC/yr")
     ph99.timestep = 1 * unit_registry("yr")
     ph99.time_start = 10 * unit_registry("s")
-    ph99.time_current = ph99.time_start + ph99.timestep
+    ph99._time_current = ph99.time_start + ph99.timestep
 
     ph99.cumulative_emissions = np.array([0, np.nan]) * unit_registry("GtC")
     # should pass without error
@@ -236,6 +236,22 @@ def test_step(ph99):
     ph99._update_concentrations.assert_called_once()
     ph99._update_temperatures.assert_called_once()
 
+
+
+def test_time_current(ph99):
+    assert ph99.time_current.magnitude == 0
+    assert ph99.time_current.units == unit_registry("s")
+
+    ph99._time_current = 10 * unit_registry("s")
+
+    assert ph99.time_current.magnitude == 10
+    assert ph99.time_current.units == unit_registry("s")
+
+
+def test_run(ph99):
+    ph99.emissions = np.array([2, 10, 3, 4]) * unit_registry("GtC/yr")
+    ph99.run()
+    assert False
 
 # test that input arrays (time, emissions) are all same length, error if not
 # test that units are correct, error if not
