@@ -11,6 +11,7 @@ import numpy as np
 from ..units import unit_registry
 from ..errors import OutOfTimeBoundsError
 
+
 class PH99Model(object):
     """Simple climate model first presented in Petschel-Held Climatic Change 1999
 
@@ -22,19 +23,24 @@ class PH99Model(object):
     Hasselmann, K.: The tolerable windows approach: Theoretical and methodological
     foundations, Climatic Change, 41, 303–331, 1999.
     """
+
     # TODO: decide whether we want int or float for time
     # TODO: check if there is there a way to specify type when we define the variables
     # like in a function signature?
-    time = [np.nan] * unit_registry.s  # default has to be None, anything else doesn't make sense
+    time = [
+        np.nan
+    ] * unit_registry.s  # default has to be None, anything else doesn't make sense
     """array of `pint.Quantity`: time axis in seconds since 1970-1-1"""
 
-    now = None  # default has to be None, anything else doesn't make sense
+    time_current = None  # default has to be None, anything else doesn't make sense
     """int: Current time in seconds since 1970-1-1"""
 
     @property
     def time_idx(self):
-        return np.argmax(self.time == self.now)
+        if self.time_current is None:
+            return None
 
+        return np.argmax(self.time == self.time_current)
 
     def run(self, restart: bool) -> None:
         """Run the model
@@ -42,7 +48,7 @@ class PH99Model(object):
         Parameters
         ----------
         restart
-            If True, run the model from the first timestep rather than from the value of self.now. This will overwrite any values which have already been
+            If True, run the model from the first timestep rather than from the value of self.time_current. This will overwrite any values which have already been
             calculated.
         """
         # super nice that we don't have to write type in docstring when the type is in the function signature
@@ -50,13 +56,16 @@ class PH99Model(object):
 
     def step(self) -> None:
         """Step the model forward to the next point in time"""
-        self.step_time()
-        self.step_cumulative_emissions()
-        self.step_concentrations()
-        self.step_temperature()
+        self._step_time()
+        self._step_cumulative_emissions()
+        self._step_concentrations()
+        self._step_temperature()
 
-    def step_time(self) -> None:
+    def _step_time(self) -> None:
         try:
-            self.now = self.time[self.time_idx+1]
+            self.time_current = self.time[self.time_idx + 1]
         except IndexError:
-            raise OutOfTimeBoundsError("Cannot step time again as we are already at the last value in self.time")
+            raise OutOfTimeBoundsError(
+                "Cannot step time again as we are already at the last value in "
+                "self.time"
+            )

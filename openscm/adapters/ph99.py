@@ -10,6 +10,8 @@ Questions as I write:
     - e.g., in PH99, do we write emissions as E (as in the paper) or e (following Python conventions) or as emissions (giving it an easier name to immediately understand)? An alternate proposal would be to provide access to all variables via the names as they are given in their respective papers, but use Python compliant names internally. This allows external users to query things just by copying the paper, but allows us to write code we can actually work with.
 - can/should we cache model instances for models like MAGICC which are expensive to spin up
 """
+
+
 class PH99(Adapter):
     """Adapter for the simple climate model first presented in Petschel-Held Climatic Change 1999
 
@@ -21,6 +23,7 @@ class PH99(Adapter):
     Hasselmann, K.: The tolerable windows approach: Theoretical and methodological
     foundations, Climatic Change, 41, 303–331, 1999.
     """
+
     def __init__(self):
         self.model = PH99Model()
 
@@ -31,4 +34,3 @@ class PH99(Adapter):
 
     def step(self) -> None:
         self.model.step()
-
