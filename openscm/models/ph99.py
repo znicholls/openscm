@@ -116,13 +116,11 @@ class PH99Model(object):
             .to_base_units()
             .magnitude
         )
-        assert res == int(
-            res
-        ), "somehow you have reached a point in time which isn't a multiple of your timeperiod..."
+        np.testing.assert_allclose(res, round(res)), "somehow you have reached a point in time which isn't a multiple of your timeperiod..."
         assert (
             res >= 0
         ), "somehow you have reached a point in time which is before your starting point..."
-        res = int(res)
+        res = round(res)
         try:
             self.emissions[res]
         except IndexError:

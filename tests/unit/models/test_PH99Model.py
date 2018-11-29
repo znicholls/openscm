@@ -248,25 +248,11 @@ def test_run_no_emissions(ph99):
 
 
 def test_run(ph99):
-
     ph99.emissions = np.array([2, 10, 3, 4]) * unit_registry("GtC/yr")
     ph99.step = MagicMock()
-    # # I need to add a setter which sets other arrays based on length of emissions
-    # # temporary workaround
-    # ph99.cumulative_emissions = unit_registry.Quantity(
-    #     np.nan * np.zeros_like(ph99.emissions),
-    #     "GtC"
-    # )
-    # ph99.concentrations = unit_registry.Quantity(
-    #     np.nan * np.zeros_like(ph99.emissions),
-    #     "ppm"
-    # )
-    # ph99.temperatures = unit_registry.Quantity(
-    #     np.nan * np.zeros_like(ph99.emissions),
-    #     "degC"
-    # )
 
     ph99.run()
+
     assert ph99.step.call_count == len(ph99.emissions)
 
 
@@ -288,3 +274,4 @@ def test_run_already_done(ph99):
 # test that units are correct, error if not
 # test that initially all arrays are np.nan if not passed in
 # setting time should set time_current too
+# test of restart flag in run
