@@ -123,7 +123,10 @@ def test_update_concentrations(ph99):
     )
     expected_next_year_conc = tconcentrations[0] + grad * ttimestep
 
-    expected_magnitude = np.array([300, expected_next_year_conc.magnitude])
+    expected_magnitude = np.array([
+        tconcentrations[0].magnitude,
+        expected_next_year_conc.magnitude
+    ])
     # check if there's Pint testing which does this in one line for us
     np.testing.assert_allclose(ph99.concentrations.magnitude, expected_magnitude)
     assert ph99.concentrations.units == unit_registry("ppm")
@@ -131,7 +134,7 @@ def test_update_concentrations(ph99):
     ph99._check_update_overwrite.assert_called_with("concentrations")
 
 
-def test_update_temperature(ph99):
+def test_update_temperatures(ph99):
     ttimestep = 1 * unit_registry("yr")
     ph99.timestep = ttimestep
 
@@ -161,18 +164,20 @@ def test_update_temperature(ph99):
     ph99.time = np.array([0, 1])
     ph99.time_current = 1
 
-    ph99._update_temperature()
+    ph99._update_temperatures()
     grad = (
         tmu * np.log(tconcentrations[0] / tc1)  # np.log is natural log
         - talpha * (ttemperatures[0] - tt1)
     )
     expected_next_year_temp = ttemperatures[0] + grad * ttimestep
 
-    expected_magnitude = np.array([300, expected_next_year_temp.magnitude])
+    expected_magnitude = np.array([
+        ttemperatures[0].magnitude,
+        expected_next_year_temp.magnitude
+    ])
     # check if there's Pint testing which does this in one line for us
     np.testing.assert_allclose(ph99.temperatures.magnitude, expected_magnitude)
     assert ph99.temperatures.units == unit_registry("degC")
-
 
     ph99._check_update_overwrite.assert_called_with("temperature")
 
@@ -200,14 +205,14 @@ def test_step(ph99):
     ph99._step_time = MagicMock()
     ph99._update_cumulative_emissions = MagicMock()
     ph99._update_concentrations = MagicMock()
-    ph99._update_temperature = MagicMock()
+    ph99._update_temperatures = MagicMock()
 
     ph99.step()
 
     ph99._step_time.assert_called_once()
     ph99._update_cumulative_emissions.assert_called_once()
     ph99._update_concentrations.assert_called_once()
-    ph99._update_temperature.assert_called_once()
+    ph99._update_temperatures.assert_called_once()
 
 
 # test that input arrays (time, emissions) are all same length, error if not

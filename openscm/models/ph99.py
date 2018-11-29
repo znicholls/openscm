@@ -128,7 +128,7 @@ class PH99Model(object):
         self._step_time()
         self._update_cumulative_emissions()
         self._update_concentrations()
-        self._update_temperature()
+        self._update_temperatures()
 
     def _step_time(self) -> None:
         try:
@@ -160,6 +160,17 @@ class PH99Model(object):
             + dcdt * self.timestep
         )
 
+    def _update_temperatures(self) -> None:
+        """Update the concentrations"""
+        self._check_update_overwrite("temperature")
+        dtdt = (
+            self.mu * np.log(self.concentrations[self.time_idx - 1] / self.c1)
+            - self.alpha * (self.temperatures[self.time_idx - 1] - self.t1)
+        )
+        self.temperatures[self.time_idx] = (
+            self.temperatures[self.time_idx - 1]
+            + dtdt * self.timestep
+        )
 
     def _check_update_overwrite(self, attribute_to_check) -> None:
         """Check if updating the given array will overwrite existing data
