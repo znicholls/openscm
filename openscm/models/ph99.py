@@ -1,6 +1,6 @@
 """
 Questions as I write:
-- Should stepping a model forward do the timesteps given in
+- Should the model do unit conversions internally or explode?
 
 Decisions as I write:
 - A model should take in a time array, and check that it matches with its internal timestep. Models shouldn't interpolate internally, that should be somewhere else in pre-processing. Models should also use regular timesteps. This means that months don't work (they vary in length and by year). Years also don't really make sense as they (strictly) vary in length. Hence most models should be working in days or minutes or hours or seconds (yes, strictly, these all also vary in length but those variations are sufficiently small not to matter). If people want to convert back to human calendars later, they can do so but that should also be a pre/post-processing step.
@@ -17,6 +17,14 @@ class PH99Model(object):
 
     This one box model projects global-mean CO2 concentrations, global-mean radiative
     forcing and global-mean temperatures from emissions of CO2 alone.
+
+    Conventions:
+
+    - All fluxes are time period averages and are assumed to be constant throughout
+      the time period
+
+    - All state variables are start of time period values
+
 
     Further reference:
     Petschel-Held, G., Schellnhuber, H.-J., Bruckner, T., Toth, F. L., and
@@ -43,6 +51,30 @@ class PH99Model(object):
 
     cumulative_emissions = np.array([np.nan]) * unit_registry("GtC")
     """`pint.Quantity` array: Cumulative emissions of CO2 in GtC"""
+
+    concentrations = np.array([np.nan]) * unit_registry("ppm")
+    """`pint.Quantity` array: Concentrations of CO2 in ppm"""
+
+    b = 1.51 * 10**-3 * unit_registry("ppm / (GtC * yr)")
+    """:obj:`pint.Quantity`: B parameter in ppm / (GtC yr)"""
+
+    beta = 0.47 * unit_registry("ppm/GtC")
+    """:obj:`pint.Quantity`: beta parameter in ppm / GtC
+
+    This is the fraction of emissions which impact the carbon cycle.
+    """
+
+    sigma = 2.15 * 10**-2 * unit_registry("1/yr")
+    """:obj:`pint.Quantity`: sigma parameter in yr^-1
+
+    The characteristic response time of the carbon cycle.
+    """
+
+    c1 = 290 * unit_registry("ppm")
+    """:obj:`pint.Quantity`: C1 parameter in ppm
+
+    The pre-industrial CO2 concentration.
+    """
 
     @property
     def time_idx(self):
@@ -88,7 +120,20 @@ class PH99Model(object):
         self._check_update_overwrite("cumulative_emissions")
         self.cumulative_emissions[self.time_idx] = (
             self.cumulative_emissions[self.time_idx - 1]
-            + self.emissions[self.time_idx] * self.timestep
+            + self.emissions[self.time_idx - 1] * self.timestep
+        )
+
+    def _update_concentrations(self) -> None:
+        """Update the concentrations"""
+        self._check_update_overwrite("concentrations")
+        dcdt = (
+            self.b * self.cumulative_emissions[self.time_idx - 1]
+            + self.beta * self.emissions[self.time_idx - 1]
+            - self.sigma * (self.concentrations[self.time_idx - 1] - self.c1)
+        )
+        self.concentrations[self.time_idx] = (
+            self.concentrations[self.time_idx - 1]
+            + dcdt * self.timestep
         )
 
 
