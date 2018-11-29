@@ -32,20 +32,20 @@ class PH99Model(object):
     foundations, Climatic Change, 41, 303–331, 1999.
     """
 
-    # TODO: check if there is there a way to specify type when we define the variables
-    # like in a function signature?
-    time_start = 0 * unit_registry("s")
-    """int: Start time of run in seconds since 1970-1-1"""
-    # TODO: decide if this seconds since business makes sense in a model
+    def __init__(self, time_start=0 * unit_registry("s")):
+        """Initialise an instance of PH99Model
 
-    @property
-    def time_current(self):
-        """int: Current time in seconds since 1970-1-1"""
-        try:
-            return self._time_current
-        except AttributeError:
-            self._time_current = self.time_start
-            return self._time_current
+        Parameters
+        ----------
+        time_start: :obj:`pint.Quantity`
+            Start time of run in seconds since 1970-1-1.
+
+        Side Effects
+        ------------
+        Sets `self.time_current` to `time_start`
+        """
+        self.time_start = time_start
+        self.time_current = time_start
 
     _yr = 1 * unit_registry("yr")
     timestep = _yr.to("s")
@@ -64,7 +64,7 @@ class PH99Model(object):
     temperatures = unit_registry.Quantity(np.array([np.nan]), "degC")
     """`pint.Quantity` array: Global-mean temperatures in degrees C"""
 
-    b = 1.51 * 10**-3 * unit_registry("ppm / (GtC * yr)")
+    b = 1.51 * 10 ** -3 * unit_registry("ppm / (GtC * yr)")
     """:obj:`pint.Quantity`: B parameter in ppm / (GtC yr)"""
 
     beta = 0.47 * unit_registry("ppm/GtC")
@@ -73,7 +73,7 @@ class PH99Model(object):
     This is the fraction of emissions which impact the carbon cycle.
     """
 
-    sigma = 2.15 * 10**-2 * unit_registry("1/yr")
+    sigma = 2.15 * 10 ** -2 * unit_registry("1/yr")
     """:obj:`pint.Quantity`: sigma parameter in yr^-1
 
     The characteristic response time of the carbon cycle.
@@ -86,7 +86,7 @@ class PH99Model(object):
     The pre-industrial CO2 concentration.
     """
 
-    mu = unit_registry.Quantity(8.7 * 10**-2, "degC/yr")
+    mu = unit_registry.Quantity(8.7 * 10 ** -2, "degC/yr")
     """:obj:`pint.Quantity`: mu parameter in degrees C / yr
 
     This is like a scaling factor of the radiative forcing due to CO2 but has
@@ -94,7 +94,7 @@ class PH99Model(object):
     than an energy balance equation.
     """
 
-    alpha = 1.7 * 10**-2 * unit_registry("1/yr")
+    alpha = 1.7 * 10 ** -2 * unit_registry("1/yr")
     """:obj:`pint.Quantity`: alpha parameter in yr^-1
 
     The characteristic response time of global-mean temperatures.
@@ -112,10 +112,16 @@ class PH99Model(object):
             raise ValueError("emissions have not been set yet")
 
         res = (
-            (self.time_current - self.time_start)
-            / self.timestep
-        ).to_base_units().magnitude
-        assert res == int(res), "somehow you have reached a point in time which isn't a multiple of your timeperiod..."
+            ((self.time_current - self.time_start) / self.timestep)
+            .to_base_units()
+            .magnitude
+        )
+        assert res == int(
+            res
+        ), "somehow you have reached a point in time which isn't a multiple of your timeperiod..."
+        assert (
+            res >= 0
+        ), "somehow you have reached a point in time which is before your starting point..."
         res = int(res)
         try:
             self.emissions[res]
@@ -125,9 +131,7 @@ class PH99Model(object):
                 "Requested time: {}\n"
                 "Timestep index: {}\n"
                 "Length of emissions (remember Python is zero-indexed): {}\n".format(
-                    self.time_current,
-                    res,
-                    len(self.emissions)
+                    self.time_current, res, len(self.emissions)
                 )
             )
             raise OutOfBoundsError(error_msg)
@@ -145,7 +149,16 @@ class PH99Model(object):
             been calculated.
         """
         # super nice that we don't have to write type in docstring when the type is in the function signature
-        pass
+        try:
+            self.emissions_idx
+        except OutOfBoundsError:
+            raise OutOfBoundsError("already run until the end of emissions")
+
+        for _ in range(len(self.emissions)):
+            try:
+                self.step()
+            except OutOfBoundsError:
+                break
 
     def step(self) -> None:
         """Step the model forward to the next point in time"""
@@ -155,7 +168,7 @@ class PH99Model(object):
         self._update_temperatures()
 
     def _step_time(self) -> None:
-        self._time_current += self.timestep
+        self.time_current += self.timestep
 
     def _update_cumulative_emissions(self) -> None:
         """Update the cumulative emissions"""
@@ -174,20 +187,17 @@ class PH99Model(object):
             - self.sigma * (self.concentrations[self.emissions_idx - 1] - self.c1)
         )
         self.concentrations[self.emissions_idx] = (
-            self.concentrations[self.emissions_idx - 1]
-            + dcdt * self.timestep
+            self.concentrations[self.emissions_idx - 1] + dcdt * self.timestep
         )
 
     def _update_temperatures(self) -> None:
         """Update the concentrations"""
-        self._check_update_overwrite("temperature")
-        dtdt = (
-            self.mu * np.log(self.concentrations[self.emissions_idx - 1] / self.c1)
-            - self.alpha * (self.temperatures[self.emissions_idx - 1] - self.t1)
-        )
+        self._check_update_overwrite("temperatures")
+        dtdt = self.mu * np.log(
+            self.concentrations[self.emissions_idx - 1] / self.c1
+        ) - self.alpha * (self.temperatures[self.emissions_idx - 1] - self.t1)
         self.temperatures[self.emissions_idx] = (
-            self.temperatures[self.emissions_idx - 1]
-            + dtdt * self.timestep
+            self.temperatures[self.emissions_idx - 1] + dtdt * self.timestep
         )
 
     def _check_update_overwrite(self, attribute_to_check) -> None:
