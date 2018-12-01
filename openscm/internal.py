@@ -7,7 +7,6 @@ from .core import ParameterSet
 from abc import ABCMeta, abstractmethod
 
 
-# Ask Sven what ABCMeta class is
 class Adapter(metaclass=ABCMeta):
     """
     Base class for model adapters which wrap specific SCMs.
@@ -22,7 +21,6 @@ class Adapter(metaclass=ABCMeta):
     def __init__(self, parameters: ParameterSet):
         self.parameters = parameters
 
-    # what does labelling something as 'abstractmethod' do?
     @abstractmethod
     def initialize(self) -> None:
         """
