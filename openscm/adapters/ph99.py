@@ -3,12 +3,7 @@ from ..models import PH99Model
 
 """
 Questions as I write:
-- CO2 shortcut?
-- How do we specify what mode we want models to run in (emissions driven, concentration driven, inverse from concentrations, inverse from emissions)?
-    - Second order question
-- variable names, do we copy them straight out of papers or do we use standard coding practices?
-    - e.g., in PH99, do we write emissions as E (as in the paper) or e (following Python conventions) or as emissions (giving it an easier name to immediately understand)? An alternate proposal would be to provide access to all variables via the names as they are given in their respective papers, but use Python compliant names internally. This allows external users to query things just by copying the paper, but allows us to write code we can actually work with.
-- can/should we cache model instances for models like MAGICC which are expensive to spin up
+- how to cache model instances for adapters, doesn't really matter here but matters more models like MAGICC which are expensive to spin up
 """
 
 
