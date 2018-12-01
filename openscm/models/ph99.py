@@ -14,6 +14,7 @@ Decisions as I write:
         - if people want to convert back to human calendars later, they can do so but that should also be a pre/post-processing step.
 """
 
+
 class PH99Model(object):
     """Simple climate model first presented in Petschel-Held Climatic Change 1999
 
@@ -118,7 +119,9 @@ class PH99Model(object):
             .to_base_units()
             .magnitude
         )
-        np.testing.assert_allclose(res, round(res)), "somehow you have reached a point in time which isn't a multiple of your timeperiod..."
+        np.testing.assert_allclose(
+            res, round(res)
+        ), "somehow you have reached a point in time which isn't a multiple of your timeperiod..."
         assert (
             res >= 0
         ), "somehow you have reached a point in time which is before your starting point..."

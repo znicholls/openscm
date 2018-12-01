@@ -4,12 +4,47 @@ from unittest.mock import MagicMock, PropertyMock, patch
 
 import numpy as np
 import pytest
-import pint
 
 
 from openscm.models import PH99Model
 from openscm.errors import OutOfBoundsError, OverwriteError
 from openscm.units import unit_registry
+
+
+# temporary workaround until this is in Pint itself and can be imported
+def assert_pint_equal(a, b, **kwargs):
+    c = b.to(a.units)
+    try:
+        np.testing.assert_array_equal(a.magnitude, c.magnitude, **kwargs)
+
+    except AssertionError as e:
+        original_msg = "{}".format(e)
+        note_line = (
+            "Note: values above have been converted to {}".format(a.units)
+        )
+        units_lines = (
+            "Input units:\n"
+            "x: {}\n"
+            "y: {}".format(a.units, b.units)
+        )
+
+        numerical_lines = (
+            "Numerical values with units:\n"
+            "x: {}\n"
+            "y: {}".format(a, b)
+        )
+
+        error_msg = (
+            "{}\n"
+            "\n"
+            "{}\n"
+            "\n"
+            "{}\n"
+            "\n"
+            "{}".format(original_msg, note_line, units_lines, numerical_lines)
+        )
+
+        raise AssertionError(error_msg)
 
 
 yr = 1 * unit_registry.year
@@ -22,13 +57,14 @@ def ph99():
 
 
 def test_step_time(ph99):
-    ph99.timestep = 10 * unit_registry("s")
-    ph99.time_current = 100 * unit_registry("s")
+    ttimestep = 10 * unit_registry("s")
+    ph99.timestep = ttimestep.copy()
+    tstart_time = 100 * unit_registry("s")
+    ph99.time_current = tstart_time.copy()
 
     ph99._step_time()
 
-    assert ph99.time_current.magnitude == 100 + ph99.timestep.magnitude
-    assert ph99.time_current.units == unit_registry("s")
+    assert_pint_equal(ph99.time_current, tstart_time + ttimestep)
 
 
 def test_emissions_idx(ph99):
@@ -69,7 +105,9 @@ def test_emissions_idx_out_of_bounds_error(ph99):
 
 
 def test_update_cumulative_emissions():
-    with patch("openscm.models.PH99Model.emissions_idx", new_callable=PropertyMock) as mocked_emissions_idx:
+    with patch(
+        "openscm.models.PH99Model.emissions_idx", new_callable=PropertyMock
+    ) as mocked_emissions_idx:
         mocked_emissions_idx.return_value = 1
 
         ph99 = PH99Model()
@@ -83,20 +121,17 @@ def test_update_cumulative_emissions():
         # State variables are start of year values hence emissions only arrive in
         # output array in the next year. Hence add 10 GtC / yr * 1 yr to end
         # cumulative emissions array.
-        expected_magnitude = np.array([0, 2])
-        # check if there's Pint testing which does this in one line for us
-        np.testing.assert_allclose(ph99.cumulative_emissions, ph99.cumulative_emissions)
-        np.testing.assert_allclose(
-            ph99.cumulative_emissions.magnitude,
-            expected_magnitude
-        )
-        assert ph99.cumulative_emissions.units == unit_registry("GtC")
+        expected = np.array([0, 2]) * unit_registry("GtC")
+
+        assert_pint_equal(ph99.cumulative_emissions, expected)
 
         ph99._check_update_overwrite.assert_called_with("cumulative_emissions")
 
 
 def test_update_concentrations():
-    with patch("openscm.models.PH99Model.emissions_idx", new_callable=PropertyMock) as mocked_emissions_idx:
+    with patch(
+        "openscm.models.PH99Model.emissions_idx", new_callable=PropertyMock
+    ) as mocked_emissions_idx:
         mocked_emissions_idx.return_value = 1
 
         ph99 = PH99Model()
@@ -141,18 +176,18 @@ def test_update_concentrations():
         )
         expected_next_year_conc = tconcentrations[0] + grad * ttimestep
 
-        expected_magnitude = np.array(
+        expected = np.array(
             [tconcentrations[0].magnitude, expected_next_year_conc.magnitude]
-        )
-        # check if there's Pint testing which does this in one line for us
-        np.testing.assert_allclose(ph99.concentrations.magnitude, expected_magnitude)
-        assert ph99.concentrations.units == unit_registry("ppm")
+        ) * unit_registry("ppm")
+        assert_pint_equal(ph99.concentrations, expected)
 
         ph99._check_update_overwrite.assert_called_with("concentrations")
 
 
 def test_update_temperatures():
-    with patch("openscm.models.PH99Model.emissions_idx", new_callable=PropertyMock) as mocked_emissions_idx:
+    with patch(
+        "openscm.models.PH99Model.emissions_idx", new_callable=PropertyMock
+    ) as mocked_emissions_idx:
         mocked_emissions_idx.return_value = 1
 
         ph99 = PH99Model()
@@ -187,18 +222,18 @@ def test_update_temperatures():
         )
         expected_next_year_temp = ttemperatures[0] + grad * ttimestep
 
-        expected_magnitude = np.array(
+        expected = np.array(
             [ttemperatures[0].magnitude, expected_next_year_temp.magnitude]
-        )
-        # check if there's Pint testing which does this in one line for us
-        np.testing.assert_allclose(ph99.temperatures.magnitude, expected_magnitude)
-        assert ph99.temperatures.units == unit_registry("degC")
+        ) * unit_registry("degC")
+        assert_pint_equal(ph99.temperatures, expected)
 
         ph99._check_update_overwrite.assert_called_with("temperatures")
 
 
 def test_check_update_overwrite():
-    with patch("openscm.models.PH99Model.emissions_idx", new_callable=PropertyMock) as mocked_emissions_idx:
+    with patch(
+        "openscm.models.PH99Model.emissions_idx", new_callable=PropertyMock
+    ) as mocked_emissions_idx:
         mocked_emissions_idx.return_value = 1
 
         ph99 = PH99Model()
@@ -208,7 +243,9 @@ def test_check_update_overwrite():
         ph99._check_update_overwrite("cumulative_emissions")
 
         ph99.cumulative_emissions = np.array([0, 10]) * unit_registry("GtC")
-        error_msg = re.escape("Stepping cumulative_emissions will overwrite existing data")
+        error_msg = re.escape(
+            "Stepping cumulative_emissions will overwrite existing data"
+        )
         with pytest.raises(OverwriteError, match=error_msg):
             ph99._check_update_overwrite("cumulative_emissions")
 
@@ -253,7 +290,9 @@ def test_run(ph99):
 
 
 def test_run_already_done(ph99):
-    with patch("openscm.models.PH99Model.emissions_idx", new_callable=PropertyMock) as mocked_emissions_idx:
+    with patch(
+        "openscm.models.PH99Model.emissions_idx", new_callable=PropertyMock
+    ) as mocked_emissions_idx:
         mocked_emissions_idx.side_effect = OutOfBoundsError
 
         ph99 = PH99Model()
