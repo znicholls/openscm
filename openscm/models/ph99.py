@@ -1,16 +1,18 @@
-"""
-Questions as I write:
-- Should the model do unit conversions internally or explode?
-
-Decisions as I write:
-- A model should take in a time array, and check that it matches with its internal timestep. Models shouldn't interpolate internally, that should be somewhere else in pre-processing. Models should also use regular timesteps. This means that months don't work (they vary in length and by year). Years also don't really make sense as they (strictly) vary in length. Hence most models should be working in days or minutes or hours or seconds (yes, strictly, these all also vary in length but those variations are sufficiently small not to matter). If people want to convert back to human calendars later, they can do so but that should also be a pre/post-processing step.
-"""
 import numpy as np
 
 
 from ..units import unit_registry
 from ..errors import OutOfBoundsError, OverwriteError
 
+"""
+TODO: put this somewhere
+Decisions as I write:
+- A model should take in a time start and have a timeperiod attribute. This avoids:
+    - requiring models to interpolate internally, that should be somewhere else in pre-processing.
+    - having to worry about irregular timesteps
+        - with Pint, a month is just 1/12 of a year so that would also be a regular timestep from a Pint point of view
+        - if people want to convert back to human calendars later, they can do so but that should also be a pre/post-processing step.
+"""
 
 class PH99Model(object):
     """Simple climate model first presented in Petschel-Held Climatic Change 1999
