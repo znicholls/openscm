@@ -111,7 +111,7 @@ class PH99Model(object):
     @property
     def emissions_idx(self):
         if any(np.isnan(self.emissions)):
-            raise ValueError("emissions have not been set yet")
+            raise ValueError("emissions have not been set yet or contain nan's")
 
         res = (
             ((self.time_current - self.time_start) / self.timestep)
