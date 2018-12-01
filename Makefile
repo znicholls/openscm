@@ -8,7 +8,7 @@ venv: dev-requirements.txt setup.py
 test: | venv
 	./venv/bin/pytest -rfsxEX --cov=openscm tests
 
-test_all: test | venv
+test-all: test | venv
 	./venv/bin/pytest -rfsxEX --nbval ./notebooks --sanitize ./notebooks/tests_sanitize.cfg
 
 docs: | venv
