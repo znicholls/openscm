@@ -16,19 +16,11 @@ def assert_pint_equal(a, b, **kwargs):
 
     except AssertionError as e:
         original_msg = "{}".format(e)
-        note_line = (
-            "Note: values above have been converted to {}".format(a.units)
-        )
-        units_lines = (
-            "Input units:\n"
-            "x: {}\n"
-            "y: {}".format(a.units, b.units)
-        )
+        note_line = "Note: values above have been converted to {}".format(a.units)
+        units_lines = "Input units:\n" "x: {}\n" "y: {}".format(a.units, b.units)
 
         numerical_lines = (
-            "Numerical values with units:\n"
-            "x: {}\n"
-            "y: {}".format(a, b)
+            "Numerical values with units:\n" "x: {}\n" "y: {}".format(a, b)
         )
 
         error_msg = (
