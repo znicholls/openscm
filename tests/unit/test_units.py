@@ -122,3 +122,9 @@ def test_context():
     with unit_registry.context("AR4GWP12"):
         np.testing.assert_allclose(CO2.to("N").magnitude, 12 / 44 * 20)
         np.testing.assert_allclose(N.to("CO2").magnitude, 44 / 12 / 20)
+
+
+def test_sar():
+    CO2 = unit_registry("CO2")
+    with unit_registry.context("SARGWP100"):
+        np.testing.assert_allclose(CO2.to("N").magnitude, 12 / 44 * 20)
