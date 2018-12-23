@@ -126,5 +126,7 @@ def test_context():
 
 def test_sar():
     CO2 = unit_registry("CO2")
+    N2O = unit_registry("N2O")
     with unit_registry.context("SARGWP100"):
-        np.testing.assert_allclose(CO2.to("N").magnitude, 12 / 44 * 20)
+        np.testing.assert_allclose(N2O.to("CO2").magnitude, 310)
+        np.testing.assert_allclose(CO2.to("N2O").magnitude, 1 / 310)
