@@ -88,6 +88,7 @@ prevent inadvertent conversions from 'NOx' to e.g. 'N2O', the conversion 'NOx' <
 TODO: find real source for metrics, using https://www.ghgprotocol.org/sites/default/files/ghgp/Global-Warming-Potential-Values%20%28Feb%2016%202016%29_1.pdf at the moment
 """
 from os.path import join, dirname
+from copy import deepcopy
 
 
 from pint import Context, UnitRegistry
@@ -239,47 +240,46 @@ for col in context_definitions:
         if np.isnan(value):
             continue
 
-        value /= C.to("CO2").magnitude
+        def make_forward_conversion(gb, conv):
+            def fc(ur, x):
+                return (
+                    x
+                    * getattr(ur, deepcopy(gb))
+                    / getattr(ur, "C")
+                    / deepcopy(conv)
+                )
+
+            return fc
+
+        def make_inverse_conversion(gb, conv):
+            def ic(ur, x):
+                return (
+                    x
+                    * getattr(ur, "C")
+                    / getattr(ur, deepcopy(gb))
+                    * deepcopy(conv)
+                )
+
+            return ic
 
         c_name = "[carbon]"
+        # handle fact that metrics are relative to CO2 but internally we use C as base
+        # unit
+        value /= C.to("CO2").magnitude
         _c.add_transformation(
             c_name,
             "[{}]".format(_gases[gas_base]),
-            lambda unit_registry, x: x * value * getattr(unit_registry, gas_base) / getattr(unit_registry, "C"),
+            make_forward_conversion(gas_base, value)
         )
         _c.add_transformation(
             "[{}]".format(_gases[gas_base]),
             c_name,
-            lambda unit_registry, x: x * getattr(unit_registry, "C") / getattr(unit_registry, gas_base) / value,
+            make_inverse_conversion(gas_base, value),
         )
 
     unit_registry.add_context(_c)
+    # del _c
 
-_c = Context("AR4GWP12")
-_c.add_transformation(
-    "[carbon]",
-    "[nitrogen]",
-    lambda unit_registry, x: 20 * unit_registry.N * x / unit_registry.C,
-)
-_c.add_transformation(
-    "[nitrogen]",
-    "[carbon]",
-    lambda unit_registry, x: x * unit_registry.C / unit_registry.N / 20,
-)
-unit_registry.add_context(_c)
-
-_c = Context("SARGWP100")
-_c.add_transformation(
-    "[carbon]",
-    "[nitrogen]",
-    lambda unit_registry, x:  unit_registry.N * x / unit_registry.C / (310 * 44 / 14) / (12 / 44),
-)
-_c.add_transformation(
-    "[nitrogen]",
-    "[carbon]",
-    lambda unit_registry, x: x * unit_registry.C / unit_registry.N * 310 * 44 / 14 / (44 / 12),
-)
-unit_registry.add_context(_c)
 
 _ch4_context = Context("CH4_conversions")
 _ch4_context.add_transformation(

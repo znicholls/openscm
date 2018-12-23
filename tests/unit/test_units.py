@@ -116,17 +116,22 @@ def test_conversion_incompatible_units():
 def test_context():
     CO2 = unit_registry("CO2")
     with pytest.raises(DimensionalityError):
-        CO2.to("N")
+        CO2.to("CH4")
 
-    N = unit_registry("N")
+    CH4 = unit_registry("CH4")
     with unit_registry.context("AR4GWP12"):
-        np.testing.assert_allclose(CO2.to("N").magnitude, 12 / 44 * 20)
-        np.testing.assert_allclose(N.to("CO2").magnitude, 44 / 12 / 20)
+        np.testing.assert_allclose(CH4.to("CO2").magnitude, 20)
+        np.testing.assert_allclose(CO2.to("CH4").magnitude, 1 / 20)
 
 
 def test_sar():
     CO2 = unit_registry("CO2")
     N2O = unit_registry("N2O")
+    CH4 = unit_registry("CH4")
+
     with unit_registry.context("SARGWP100"):
+        np.testing.assert_allclose(CH4.to("CO2").magnitude, 21)
+        np.testing.assert_allclose(CO2.to("CH4").magnitude, 1 / 21)
+
         np.testing.assert_allclose(N2O.to("CO2").magnitude, 310)
         np.testing.assert_allclose(CO2.to("N2O").magnitude, 1 / 310)

@@ -1,2 +1,4 @@
 include versioneer.py
 include openscm/_version.py
+
+recursive-include openscm/ *.csv
