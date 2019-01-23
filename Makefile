@@ -1,3 +1,44 @@
+DATA_DIR = ./data
+
+
+RCPS_DIR=$(DATA_DIR)/rcps
+RCPHISTORICAL_EMISSIONS=$(RCPS_DIR)/20THCENTURY_EMISSIONS.DAT
+RCP26_EMISSIONS=$(RCPS_DIR)/RCP26_EMISSIONS.DAT
+RCP45_EMISSIONS=$(RCPS_DIR)/RCP45_EMISSIONS.DAT
+RCP60_EMISSIONS=$(RCPS_DIR)/RCP60_EMISSIONS.DAT
+RCP85_EMISSIONS=$(RCPS_DIR)/RCP85_EMISSIONS.DAT
+RCPS_EMISSIONS=$(RCPHISTORICAL_EMISSIONS) $(RCP26_EMISSIONS) $(RCP45_EMISSIONS) $(RCP60_EMISSIONS) $(RCP85_EMISSIONS)
+
+
+.PHONY: full-dev-setup
+full-dev-setup: venv $(RCPS_EMISSIONS)
+
+rcps-data: $(RCPS_EMISSIONS)
+
+$(RCPHISTORICAL_EMISSIONS):
+	wget http://www.pik-potsdam.de/~mmalte/rcps/data/20THCENTURY_EMISSIONS.DAT -O $@
+	touch $@
+
+$(RCP26_EMISSIONS):
+	mkdir -p $(RCPS_DIR)
+	wget http://www.pik-potsdam.de/~mmalte/rcps/data/RCP3PD_EMISSIONS.DAT -O $@
+	touch $@
+
+$(RCP45_EMISSIONS):
+	mkdir -p $(RCPS_DIR)
+	wget http://www.pik-potsdam.de/~mmalte/rcps/data/RCP45_EMISSIONS.DAT -O $@
+	touch $@
+
+$(RCP60_EMISSIONS):
+	mkdir -p $(RCPS_DIR)
+	wget http://www.pik-potsdam.de/~mmalte/rcps/data/RCP6_EMISSIONS.DAT -O $@
+	touch $@
+
+$(RCP85_EMISSIONS):
+	mkdir -p $(RCPS_DIR)
+	wget http://www.pik-potsdam.de/~mmalte/rcps/data/RCP85_EMISSIONS.DAT -O $@
+	touch $@
+
 venv: setup.py
 	[ -d ./venv ] || python3 -m venv ./venv
 	./venv/bin/pip install --upgrade pip
