@@ -1,0 +1,1 @@
+- where do we store readers specific to MAGICC? Do we make pymagicc a dependency of OpenSCM?
