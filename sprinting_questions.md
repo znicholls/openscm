@@ -4,3 +4,10 @@
 - high level stores dataframe with multiple scenarios
 - it pushes the scenarios, one at a time, into low level
 - hence scenario filtering etc. is handled in high level, parameter set literally contains parameter set for that run and that run only
+
+
+1. Expose time col formatting in pyam
+1. Put OpenSCMDataFrame in OpenSCM
+1. Fix pymagicc to use OpenSCMDataFrame
+1. Do pymagicc PRs and move openscmdataframe to openscm
+1. Set up openscm running business
