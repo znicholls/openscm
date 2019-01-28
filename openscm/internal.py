@@ -18,8 +18,8 @@ class Adapter(metaclass=ABCMeta):
     :class:`openscm.core.ParameterSet`.
     """
 
-    def __init__(self, parameters: ParameterSet):
-        self.parameters = parameters
+    def __init__(self):
+        pass
 
     @abstractmethod
     def initialize(self) -> None:
@@ -29,7 +29,7 @@ class Adapter(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def run(self) -> None:
+    def run(self, parameters: ParameterSet) -> None:
         """
         Run the model over the full time range.
         """
@@ -39,5 +39,12 @@ class Adapter(metaclass=ABCMeta):
     def step(self) -> None:
         """
         Do a single time step.
+        """
+        pass
+
+    @abstractmethod
+    def setup_scenario(self, parameters: ParameterSet) -> None:
+        """
+        Setup the model to run a given scenario.
         """
         pass
