@@ -16,6 +16,7 @@ full-dev-setup: venv $(RCPS_EMISSIONS)
 rcps-data: $(RCPS_EMISSIONS)
 
 $(RCPHISTORICAL_EMISSIONS):
+	mkdir -p $(RCPS_DIR)
 	wget http://www.pik-potsdam.de/~mmalte/rcps/data/20THCENTURY_EMISSIONS.DAT -O $@
 	touch $@
 
