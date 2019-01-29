@@ -110,7 +110,7 @@ class PH99Model(object):
     """
 
     @property
-    def emissions_idx(self):
+    def _emissions_idx(self):
         if any(np.isnan(self.emissions)):
             raise ValueError("emissions have not been set yet or contain nan's")
 
@@ -119,9 +119,15 @@ class PH99Model(object):
             .to_base_units()
             .magnitude
         )
-        np.testing.assert_allclose(
-            res, round(res)
-        ), "somehow you have reached a point in time which isn't a multiple of your timeperiod..."
+        try:
+            np.testing.assert_allclose(
+                res, round(res), rtol=1e-3,
+                err_msg="somehow you have reached a point in time which isn't a multiple of your timeperiod..."
+            )
+        except AssertionError:
+            import pdb
+            pdb.set_trace()
+
         assert (
             res >= 0
         ), "somehow you have reached a point in time which is before your starting point..."
@@ -155,7 +161,7 @@ class PH99Model(object):
             setattr(self, key, value)
 
         try:
-            self.emissions_idx
+            self._emissions_idx
         except OutOfBoundsError:
             raise OutOfBoundsError("already run until the end of emissions")
 
@@ -178,31 +184,31 @@ class PH99Model(object):
     def _update_cumulative_emissions(self) -> None:
         """Update the cumulative emissions"""
         self._check_update_overwrite("cumulative_emissions")
-        self.cumulative_emissions[self.emissions_idx] = (
-            self.cumulative_emissions[self.emissions_idx - 1]
-            + self.emissions[self.emissions_idx - 1] * self.timestep
+        self.cumulative_emissions[self._emissions_idx] = (
+            self.cumulative_emissions[self._emissions_idx - 1]
+            + self.emissions[self._emissions_idx - 1] * self.timestep
         )
 
     def _update_concentrations(self) -> None:
         """Update the concentrations"""
         self._check_update_overwrite("concentrations")
         dcdt = (
-            self.b * self.cumulative_emissions[self.emissions_idx - 1]
-            + self.beta * self.emissions[self.emissions_idx - 1]
-            - self.sigma * (self.concentrations[self.emissions_idx - 1] - self.c1)
+            self.b * self.cumulative_emissions[self._emissions_idx - 1]
+            + self.beta * self.emissions[self._emissions_idx - 1]
+            - self.sigma * (self.concentrations[self._emissions_idx - 1] - self.c1)
         )
-        self.concentrations[self.emissions_idx] = (
-            self.concentrations[self.emissions_idx - 1] + dcdt * self.timestep
+        self.concentrations[self._emissions_idx] = (
+            self.concentrations[self._emissions_idx - 1] + dcdt * self.timestep
         )
 
     def _update_temperatures(self) -> None:
         """Update the concentrations"""
         self._check_update_overwrite("temperatures")
         dtdt = self.mu * np.log(
-            self.concentrations[self.emissions_idx - 1] / self.c1
-        ) - self.alpha * (self.temperatures[self.emissions_idx - 1] - self.t1)
-        self.temperatures[self.emissions_idx] = (
-            self.temperatures[self.emissions_idx - 1] + dtdt * self.timestep
+            self.concentrations[self._emissions_idx - 1] / self.c1
+        ) - self.alpha * (self.temperatures[self._emissions_idx - 1] - self.t1)
+        self.temperatures[self._emissions_idx] = (
+            self.temperatures[self._emissions_idx - 1] + dtdt * self.timestep
         )
 
     def _check_update_overwrite(self, attribute_to_check) -> None:
@@ -220,7 +226,7 @@ class PH99Model(object):
             which has already been calculated.
         """
         array_to_check = self.__getattribute__(attribute_to_check)
-        if not np.isnan(array_to_check[self.emissions_idx]):
+        if not np.isnan(array_to_check[self._emissions_idx]):
             raise OverwriteError(
                 "Stepping {} will overwrite existing data".format(attribute_to_check)
             )

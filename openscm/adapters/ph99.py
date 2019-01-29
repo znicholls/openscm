@@ -8,6 +8,7 @@ from ..core import ParameterSet
 from ..internal import Adapter
 from ..models import PH99Model
 from ..units import unit_registry
+from ..errors import ParameterWrittenError
 
 """
 Questions as I write:
@@ -30,7 +31,7 @@ class PH99(Adapter):
     """
 
     def __init__(self):
-        self.model = PH99Model()
+        pass
 
     def initialize(self) -> None:
         """
@@ -40,10 +41,79 @@ class PH99(Adapter):
 
     # do I need to copy the output or is that inherited from superclass?
     def run(self, **kwargs) -> None:
+        self.model.time_current = self.model.time_start
+        # I need to add a setter which sets other arrays based on length of emissions
+        # and does re-setting etc.
+        # temporary workaround
+        initialiser = np.nan * np.zeros_like(self.model.emissions.magnitude)
+
+        cumulative_emissions_init = deepcopy(initialiser)
+        cumulative_emissions_init[0] = 0
+        self.model.cumulative_emissions = unit_registry.Quantity(
+            cumulative_emissions_init,
+            "GtC"
+        )
+
+        concentrations_init = deepcopy(initialiser)
+        concentrations_init[0] = 290
+        self.model.concentrations = unit_registry.Quantity(
+            concentrations_init,
+            "ppm"
+        )
+
+        temperatures_init = deepcopy(initialiser)
+        temperatures_init[0] = 14.6
+        self.model.temperatures = unit_registry.Quantity(
+            temperatures_init,
+            "degC"
+        )
+
         self.model.run(**kwargs)
 
-        import pdb
-        pdb.set_trace()
+        results = ParameterSet()
+        results.start_time = self.model.time_start.magnitude
+        results.period_length = self.model.timestep.magnitude
+
+        for att in dir(self.model):
+            # all time parameters captured in parameterset output
+            if not att.startswith(("_", "time")):
+                value = getattr(self.model, att)
+                if callable(value):
+                    continue
+
+                name = self._get_openscm_name(att)
+                magnitude = value.magnitude
+
+                if isinstance(magnitude, np.ndarray):
+                    view = results.get_writable_timeseries_view(
+                        (name,),  # shouldn't need trailing comma
+                        (),  # make this so World actually works
+                        str(value.units),
+                        self.model.time_start.magnitude,
+                        self.model.timestep.magnitude,
+                    )
+                    view.set_series(magnitude)
+                else:
+                    view = results.get_writable_scalar_view(
+                        (name,),  # shouldn't need trailing comma
+                        (),  # make this so World actually works
+                        str(value.units)
+                    )
+                    view.set(magnitude)
+
+        return results
+
+    def _get_openscm_name(self, name):
+        mappings = {
+            "concentrations": "Atmospheric Concentrations|CO2",
+            "cumulative_emissions": "Cumulative Emissions|CO2",
+            "emissions": "Emissions|CO2",
+            "temperatures": "Surface Temperature",
+        }
+        try:
+            return mappings[name]
+        except KeyError:
+            return name
 
     def step(self) -> None:
         self.model.step()
@@ -52,6 +122,9 @@ class PH99(Adapter):
         """
         Setup the model to run a given scenario.
         """
+        self.model = PH99Model(time_start=start_time * unit_registry("s"))
+        self.model.timestep = period_length * unit_registry("s")
+
         units = "Gt C / s"
         # TODO: get aggregated read working...
         emms_co2_fossil = parameters.get_timeseries_view(
@@ -72,28 +145,3 @@ class PH99(Adapter):
         emms_co2 = emms_co2_fossil.get_series() + emms_co2_afolu.get_series()
 
         self.model.emissions = emms_co2 * unit_registry(units)
-        # I need to add a setter which sets other arrays based on length of emissions
-        # and does re-setting etc.
-        # temporary workaround
-        initialiser = np.nan * np.zeros_like(emms_co2)
-
-        cumulative_emissions_init = deepcopy(initialiser)
-        cumulative_emissions_init[0] = 0
-        self.model.cumulative_emissions = unit_registry.Quantity(
-            cumulative_emissions_init,
-            "GtC"
-        )
-
-        concentrations_init = deepcopy(initialiser)
-        concentrations_init[0] = 291
-        self.model.concentrations = unit_registry.Quantity(
-            concentrations_init,
-            "ppm"
-        )
-
-        temperatures_init = deepcopy(initialiser)
-        temperatures_init[0] = 14.6
-        self.model.temperatures = unit_registry.Quantity(
-            temperatures_init,
-            "degC"
-        )
