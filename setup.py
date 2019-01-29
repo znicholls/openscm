@@ -39,6 +39,7 @@ setup(
         "pint",
         "seaborn",
         "pyam-iamc @ git+https://github.com/IAMconsortium/pyam.git@master",
+        "progressbar2",
     ],
     project_urls={
         "Bug Reports": "https://github.com/openclimatedata/openscm/issues",
