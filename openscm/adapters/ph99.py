@@ -40,8 +40,15 @@ class PH99(Adapter):
         pass
 
     # do I need to copy the output or is that inherited from superclass?
-    def run(self, **kwargs) -> None:
+    def run(self, parameters: ParameterSet = None) -> None:
         self.model.time_current = self.model.time_start
+        if parameters is not None:
+            for key, value in parameters._world._parameters.items():
+                if key == "beta":
+                    beta = value._data * value.info.unit
+                    self.model.beta = beta.to("ppm/GtC")
+                else:
+                    raise ValueError("unrecognised parameter")
         # I need to add a setter which sets other arrays based on length of emissions
         # and does re-setting etc.
         # temporary workaround
@@ -68,7 +75,7 @@ class PH99(Adapter):
             "degC"
         )
 
-        self.model.run(**kwargs)
+        self.model.run()
 
         results = ParameterSet()
         results.start_time = self.model.time_start.magnitude

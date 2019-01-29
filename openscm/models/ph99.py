@@ -147,7 +147,7 @@ class PH99Model(object):
 
         return res
 
-    def run(self, restart=False, **kwargs) -> None:
+    def run(self, restart=False) -> None:
         """Run the model
 
         Parameters
@@ -157,9 +157,6 @@ class PH99Model(object):
             of `self.time_current`. This will overwrite any values which have already
             been calculated.
         """
-        for key, value in kwargs.items():
-            setattr(self, key, value)
-
         try:
             self._emissions_idx
         except OutOfBoundsError:

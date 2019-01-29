@@ -10,11 +10,13 @@ from dateutil import parser
 import numpy as np
 import pandas as pd
 from pyam import IamDataFrame
+from progressbar import progressbar
 
 
 from .core import Core, ParameterSet
 from .utils import convert_datetime_to_openscm_time
 from .units import unit_registry
+from .adapters import get_adapter
 
 
 class OpenSCM(Core):
@@ -44,11 +46,11 @@ class ScmDataFrameBase(IamDataFrame):
             error_msg = "All time values must be convertible to datetime. The following values are not:\n{}".format(bad_values)
             raise ValueError(error_msg)
 
-    def append(self, other, **kwargs):
+    def append(self, other, ignore_meta_conflict=False, inplace=False, **kwargs):
         if not isinstance(other, OpenSCMDataFrame):
             other = OpenSCMDataFrame(other, **kwargs)
 
-        super().append(other, inplace=True)
+        super().append(other, ignore_meta_conflict=ignore_meta_conflict, inplace=inplace)
 
 
 class ScmDataFrame(ScmDataFrameBase):
@@ -103,6 +105,7 @@ def convert_parameter_set_to_openscmdf(
     scenario,
     model="unspecified",
 ):
+    # TODO: remove hard coding here
     for key, value in parameter_set._world._parameters.items():
         values = value._data
         if isinstance(values, np.ndarray):
@@ -122,9 +125,17 @@ def convert_parameter_set_to_openscmdf(
         "scenario": [scenario] * len(time),
         "model": [model] * len(time),
     }
+    # how do you keep track of units in metadata.. may have to get units in pandas
+    # deployed
+    for key, value in parameter_set._world._parameters.items():
+        values = value._data
+        variable = value.info.name
+        if isinstance(values, float):
+            metadata[variable] = values
 
     dataframes = []
     for key, value in parameter_set._world._parameters.items():
+        values = value._data
         variable = value.info.name
         region = value.info.region if value.info.region else "World"  # TODO: fix this
         unit = value.info.unit
@@ -135,13 +146,64 @@ def convert_parameter_set_to_openscmdf(
             "region": [region] * len(time),
             "time": time,
         }
-        values = value._data
-        if isinstance(values, float):
-            tdf["value"] = [values] * len(time)
-        else:
+        if not isinstance(values, float):
             assert len(values) == time_length
             tdf["value"] = values
 
-        dataframes.append(pd.DataFrame(tdf))
+            dataframes.append(pd.DataFrame(tdf))
 
-    return OpenSCMDataFrame(pd.concat(dataframes))
+    result = OpenSCMDataFrame(pd.concat(dataframes))
+
+    return result
+
+
+def convert_config_dict_to_parameter_set(config):
+    assert isinstance(config, dict)
+    parameters = ParameterSet()
+    for key, (region, value) in config.items():
+        # TODO: remove need for trailing comma
+        region = () if region == "World" else (region, )  # TODO: remove this
+        view = parameters.get_writable_scalar_view(
+            (key,),  # TODO: remove need for trailing comma
+            region,
+            value.units,
+        )
+        view.set(value.magnitude)
+
+    return parameters
+
+def run(drivers, model_configurations):
+    assert isinstance(model_configurations, dict), "model_configurations must be a dictionary"
+    for climate_model, configurations in model_configurations.items():
+        print("running {}\n".format(climate_model))
+        runner = get_adapter(climate_model)()
+        runner.initialize()
+        for (scenario, model), sdf in drivers.data.groupby(["scenario", "model"]):
+            print("running {}".format(scenario))
+            parameter_set_scenario = convert_openscm_df_to_parameter_set(
+                OpenSCMDataFrame(sdf.copy())
+            )
+            runner.setup_scenario(
+                parameters=parameter_set_scenario,
+                start_time=convert_datetime_to_openscm_time(sdf["time"].min()),
+            )
+            for i, config in progressbar(enumerate(configurations)):
+                parameter_set_config = convert_config_dict_to_parameter_set(config)
+                config_results = runner.run(parameter_set_config)
+
+                config_results = convert_parameter_set_to_openscmdf(
+                    config_results,
+                    climate_model,
+                    scenario,
+                    model=model,
+                )
+                try:
+                    results.append(
+                        config_results,
+                        inplace=True,
+                        ignore_meta_conflict=True,  # TODO: make meta_idx class specific in IamDataFrame
+                    )
+                except NameError:
+                    results = config_results
+
+    return results
