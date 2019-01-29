@@ -42,13 +42,8 @@ class PH99(Adapter):
     # do I need to copy the output or is that inherited from superclass?
     def run(self, parameters: ParameterSet = None) -> None:
         self.model.time_current = self.model.time_start
-        if parameters is not None:
-            for key, value in parameters._world._parameters.items():
-                if key == "beta":
-                    beta = value._data * value.info.unit
-                    self.model.beta = beta.to("ppm/GtC")
-                else:
-                    raise ValueError("unrecognised parameter")
+        self.set_parameters(parameters)
+
         # I need to add a setter which sets other arrays based on length of emissions
         # and does re-setting etc.
         # temporary workaround
@@ -109,6 +104,24 @@ class PH99(Adapter):
                     view.set(magnitude)
 
         return results
+
+    def set_parameters(self, parameters: ParameterSet = None):
+        if parameters is not None:
+            for key, value in parameters._world._parameters.items():
+                self.set_model_parameter(key, value)
+
+    def set_model_parameter(self, para_name, value):
+        try:
+            modval = value._data * unit_registry(value.info.unit)
+            setattr(
+                self.model,
+                para_name,
+                modval.to(getattr(self.model, para_name).units)
+            )
+        except AttributeError:
+            raise AttributeError(
+                "{} is not a valid PH99 parameter".format(para_name)
+            )
 
     def _get_openscm_name(self, name):
         mappings = {

@@ -131,7 +131,7 @@ def convert_parameter_set_to_openscmdf(
         values = value._data
         variable = value.info.name
         if isinstance(values, float):
-            metadata[variable] = values
+            metadata["{} ({})".format(variable, value.info.unit)] = values
 
     dataframes = []
     for key, value in parameter_set._world._parameters.items():
@@ -166,7 +166,7 @@ def convert_config_dict_to_parameter_set(config):
         view = parameters.get_writable_scalar_view(
             (key,),  # TODO: remove need for trailing comma
             region,
-            value.units,
+            str(value.units),
         )
         view.set(value.magnitude)
 
