@@ -2,40 +2,47 @@ DATA_DIR = ./data
 
 
 RCPS_DIR=$(DATA_DIR)/rcps
-RCPHISTORICAL_EMISSIONS=$(RCPS_DIR)/20THCENTURY_EMISSIONS.DAT
-RCP26_EMISSIONS=$(RCPS_DIR)/RCP26_EMISSIONS.DAT
-RCP45_EMISSIONS=$(RCPS_DIR)/RCP45_EMISSIONS.DAT
-RCP60_EMISSIONS=$(RCPS_DIR)/RCP60_EMISSIONS.DAT
-RCP85_EMISSIONS=$(RCPS_DIR)/RCP85_EMISSIONS.DAT
-RCPS_EMISSIONS=$(RCPHISTORICAL_EMISSIONS) $(RCP26_EMISSIONS) $(RCP45_EMISSIONS) $(RCP60_EMISSIONS) $(RCP85_EMISSIONS)
-
+RCPHISTORICAL_EMISSIONS_RAW=$(RCPS_DIR)/20THCENTURY_EMISSIONS.DAT
+RCP26_EMISSIONS_RAW=$(RCPS_DIR)/RCP26_EMISSIONS.DAT
+RCP45_EMISSIONS_RAW=$(RCPS_DIR)/RCP45_EMISSIONS.DAT
+RCP60_EMISSIONS_RAW=$(RCPS_DIR)/RCP60_EMISSIONS.DAT
+RCP85_EMISSIONS_RAW=$(RCPS_DIR)/RCP85_EMISSIONS.DAT
+RCPS_EMISSIONS_RAW=$(RCPHISTORICAL_EMISSIONS_RAW) $(RCP26_EMISSIONS_RAW) $(RCP45_EMISSIONS_RAW) $(RCP60_EMISSIONS_RAW) $(RCP85_EMISSIONS_RAW)
+RCPS_EMISSIONS=$(RCPS_DIR)/20thcentury_emissions.csv $(RCPS_DIR)/rcp26_emissions.csv $(RCPS_DIR)/rcp45_emissions.csv $(RCPS_DIR)/rcp60_emissions.csv $(RCPS_DIR)/rcp85_emissions.csv
 
 .PHONY: full-dev-setup
 full-dev-setup: venv $(RCPS_EMISSIONS)
 
 rcps-data: $(RCPS_EMISSIONS)
 
-$(RCPHISTORICAL_EMISSIONS):
+$(RCPS_EMISSIONS): $(RCPS_EMISSIONS_RAW) scripts/save_rcps_in_openscm_format.py
+	$(eval TEMPVENV := $(shell mktemp -d))
+	python3 -m venv $(TEMPVENV)
+	$(TEMPVENV)/bin/pip install pip --upgrade
+	$(TEMPVENV)/bin/pip install git+https://github.com/openclimatedata/pymagicc.git@tidy-up-notebooks
+	$(TEMPVENV)/bin/python scripts/save_rcps_in_openscm_format.py
+
+$(RCPHISTORICAL_EMISSIONS_RAW):
 	mkdir -p $(RCPS_DIR)
 	wget http://www.pik-potsdam.de/~mmalte/rcps/data/20THCENTURY_EMISSIONS.DAT -O $@
 	touch $@
 
-$(RCP26_EMISSIONS):
+$(RCP26_EMISSIONS_RAW):
 	mkdir -p $(RCPS_DIR)
 	wget http://www.pik-potsdam.de/~mmalte/rcps/data/RCP3PD_EMISSIONS.DAT -O $@
 	touch $@
 
-$(RCP45_EMISSIONS):
+$(RCP45_EMISSIONS_RAW):
 	mkdir -p $(RCPS_DIR)
 	wget http://www.pik-potsdam.de/~mmalte/rcps/data/RCP45_EMISSIONS.DAT -O $@
 	touch $@
 
-$(RCP60_EMISSIONS):
+$(RCP60_EMISSIONS_RAW):
 	mkdir -p $(RCPS_DIR)
 	wget http://www.pik-potsdam.de/~mmalte/rcps/data/RCP6_EMISSIONS.DAT -O $@
 	touch $@
 
-$(RCP85_EMISSIONS):
+$(RCP85_EMISSIONS_RAW):
 	mkdir -p $(RCPS_DIR)
 	wget http://www.pik-potsdam.de/~mmalte/rcps/data/RCP85_EMISSIONS.DAT -O $@
 	touch $@

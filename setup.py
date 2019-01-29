@@ -39,7 +39,6 @@ setup(
         "pint",
         "seaborn",
         "pyam-iamc @ git+https://github.com/IAMconsortium/pyam.git@master",
-        "pymagicc @ git+https://github.com/openclimatedata/pymagicc.git@tidy-up-notebooks"
     ],
     project_urls={
         "Bug Reports": "https://github.com/openclimatedata/openscm/issues",
