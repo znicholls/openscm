@@ -1,5 +1,5 @@
 from .hector import Hector
-# from .magicc6 import MAGICC6
+# from .magicc6 import MAGICC6  # TODO: work out solution so magiccdata isn't dependent on openscm
 from .ph99 import PH99
 
 def get_adapter(model):

@@ -17,16 +17,18 @@ from ..internal import Adapter
 from ..utils import convert_datetime_to_openscm_time
 
 
+ONE_YEAR_INT = int(1*unit_registry("yr").to("s").magnitude)
+
+
 class MAGICC6(Adapter):
-    def __init__(self, parameters: ParameterSet):
-        self.parameters = parameters
+    def __init__(self):
         self.magicc = pymagicc.MAGICC6()
 
     def initialize(self) -> None:
         """
         Initialize the model.
         """
-        # TODO: make this robust to not using temporary magicc setups
+        # TODO: make this able to use permanent magicc folders (rather than temporary)
         self.magicc.create_copy()
 
     def run(self, **kwargs) -> None:
@@ -40,8 +42,13 @@ class MAGICC6(Adapter):
 
         return results
 
-    def get_pymagicc_df(self) -> pymagicc.io.MAGICCData:
-        ONE_YEAR = 1*unit_registry("yr").to("s").magnitude  # make internally available
+    def setup_scenario(self, parameters: ParameterSet, start_time: int, period_length: int = ONE_YEAR_INT):
+        pymagicc_df = self.get_pymagicc_df(parameters)
+        assert period_length == ONE_YEAR_INT, "non year timesteps not currently available"
+        pass
+
+    def get_pymagicc_df(self, parameters: ParameterSet) -> pymagicc.io.MAGICCData:
+        ONE_YEAR_INT
         scen_file_emissions_units = MAGICC7_EMISSIONS_UNITS[
             MAGICC7_EMISSIONS_UNITS["part_of_scenfile_with_emissions_code_1"]
         ]  # can only convert to SCEN file for now
@@ -53,12 +60,12 @@ class MAGICC6(Adapter):
             variable_well_defined = "{}_EMIS".format(variable)
             openscm_variable = convert_magicc7_to_openscm_variables(variable_well_defined)
 
-            emms_view = self.parameters.get_timeseries_view(
+            emms_view = parameters.get_timeseries_view(
                 tuple(openscm_variable.split("|")),  # TODO: remove hard coding
                 region,
                 unit,
                 stime,
-                ONE_YEAR,
+                ONE_YEAR_INT,
             )
 
             values = emms_view.get_series()
