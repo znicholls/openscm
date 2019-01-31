@@ -50,7 +50,7 @@ $(RCP85_EMISSIONS_RAW):
 venv: setup.py
 	[ -d ./venv ] || python3 -m venv ./venv
 	./venv/bin/pip install --upgrade pip
-	./venv/bin/pip install -e .[tests,docs,dev]
+	./venv/bin/pip install -e .[tests,docs,dev,models]
 	touch venv
 
 test: venv

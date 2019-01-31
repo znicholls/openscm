@@ -57,5 +57,8 @@ setup(
             "pandas",
             "matplotlib",
         ],
+        "models": [
+            "pymagicc @ git+https://github.com/openclimatedata/pymagicc.git@znicholls-patch-1"
+        ]
     },
 )
