@@ -17,4 +17,3 @@ dist/
 docs/_build
 venv/
 htmlcov/
-data/rcps
