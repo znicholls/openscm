@@ -10,7 +10,7 @@ before_install:
   - pip install pip --upgrade
 
 install:
-  - pip install -e .[tests]
+  - pip install -e .[tests,models]
 
 script:
   - pytest --cov -rfsxEX
