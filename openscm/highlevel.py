@@ -9,7 +9,6 @@ from dateutil import parser
 
 import numpy as np
 import pandas as pd
-from pyam import IamDataFrame
 from progressbar import progressbar
 
 
@@ -17,6 +16,7 @@ from .core import Core, ParameterSet
 from .utils import convert_datetime_to_openscm_time
 from .units import unit_registry
 from .adapters import get_adapter
+from .openscmdataframebase import OpenSCMDataFrameBase
 
 
 class OpenSCM(Core):
@@ -27,6 +27,7 @@ class OpenSCM(Core):
     """
 
     pass
+
 
 class ScmDataFrameBase(IamDataFrame):
     """This base is the class other libraries can subclass
