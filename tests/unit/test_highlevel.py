@@ -1,6 +1,8 @@
+import copy
 import datetime
 import os
 import re
+from unittest.mock import PropertyMock, patch
 
 import numpy as np
 import pandas as pd
@@ -8,6 +10,7 @@ import pytest
 from numpy import testing as npt
 
 from openscm.highlevel import ScmDataFrame
+from pyam.core import require_variable, categorize, filter_by_meta, validate
 
 
 def test_init_df_long_timespan(test_pd_longtime_df):
@@ -20,12 +23,13 @@ def test_data_representation(test_iam_df, test_scm_df):
     pd.testing.assert_frame_equal(test_iam_df.data, test_scm_df.data, check_like=True)
 
 
-def test_init_df_datetime_error(test_iam_df):
-    test_iam_df["time"] = 2010
+def test_init_df_datetime_error(test_pd_df):
+    tdf = ScmDataFrame(test_pd_df).data
+    tdf["time"] = 2010
 
-    error_msg = r"^All time values must be convertible to datetime\. The following values are not:(.|\s)*$"
+    error_msg = r"^invalid time format, must have either `year` or `time`!"
     with pytest.raises(ValueError, match=error_msg):
-        ScmDataFrame(test_iam_df.data)
+        ScmDataFrame(tdf)
 
 
 df_filter_by_meta_matching_idx = pd.DataFrame([
@@ -47,6 +51,7 @@ def test_init_ts_with_index(test_pd_df):
     pd.testing.assert_frame_equal(df.data.reset_index(), test_pd_df)
 
 
+@pytest.mark.skip('')
 def test_init_df_with_float_cols_raises(test_pd_df):
     _test_scm_df = test_pd_df.rename(columns={2005: 2005.5, 2010: 2010.})
     pytest.raises(ValueError, ScmDataFrame, data=_test_scm_df)
@@ -158,16 +163,16 @@ def test_to_csv(test_scm_df):
 
 
 def test_get_item(test_scm_df):
-    assert test_scm_df['model'].unique() == ['a_model']
+    assert test_scm_df['model'].unique() == ['a_iam']
 
 
 def test_model(test_scm_df):
     pd.testing.assert_series_equal(test_scm_df.models(),
-                                   pd.Series(data=['a_model'], name='model'))
+                                   pd.Series(data=['a_iam'], name='model'))
 
 
 def test_scenario(test_scm_df):
-    exp = pd.Series(data=['a_scenario'], name='scenario')
+    exp = pd.Series(data=['a_scenario', 'a_scenario2'], name='scenario')
     pd.testing.assert_series_equal(test_scm_df.scenarios(), exp)
 
 
@@ -237,6 +242,13 @@ def test_variable_depth_raises(test_scm_df):
 
 def test_filter_error(test_scm_df):
     pytest.raises(ValueError, test_scm_df.filter, foo='foo')
+
+
+def test_filter_doesnt_call_mock(test_scm_df):
+    with patch('openscm.scmdataframebase.ScmDataFrameBase.data', new_callable=PropertyMock) as mock_data:
+        test_scm_df.filter(region='World')
+
+        mock_data.assert_not_called()
 
 
 def test_filter_year(test_scm_df):
@@ -431,8 +443,8 @@ def test_filter_time_no_match(test_scm_df):
 
 
 def test_filter_time_not_datetime_error(test_scm_df):
-    if "year" in test_scm_df.data.columns:
-        with pytest.raises(KeyError, match=re.escape("'time")):
+    if test_scm_df.time_col == "year":
+        with pytest.raises(ValueError, match="filter by `time` not supported"):
             test_scm_df.filter(time=datetime.datetime(2004, 6, 18))
     else:
         error_msg = re.escape(
@@ -444,7 +456,7 @@ def test_filter_time_not_datetime_error(test_scm_df):
 
 def test_filter_time_not_datetime_range_error(test_scm_df):
     if "year" in test_scm_df.data.columns:
-        with pytest.raises(KeyError, match=re.escape("'time")):
+        with pytest.raises(ValueError, match="filter by `time` not supported"):
             test_scm_df.filter(time=range(2000, 2008))
     else:
         error_msg = re.escape(
@@ -454,19 +466,19 @@ def test_filter_time_not_datetime_range_error(test_scm_df):
             test_scm_df.filter(time=range(2000, 2008))
 
 
-def test_filter_as_kwarg(meta_df):
-    obs = list(meta_df.filter(variable='Primary Energy|Coal').scenarios())
+def test_filter_as_kwarg(test_scm_df):
+    obs = list(test_scm_df.filter(variable='Primary Energy|Coal').scenarios())
     assert obs == ['a_scenario']
 
 
-def test_filter_keep_false(meta_df):
-    df = meta_df.filter(variable='Primary Energy|Coal', year=2005, keep=False)
+def test_filter_keep_false(test_scm_df):
+    df = test_scm_df.filter(variable='Primary Energy|Coal', year=2005, keep=False)
     obs = df.data[df.data.scenario == 'a_scenario'].value
-    np.assert_array_equal(obs, [1, 6, 3])
+    npt.assert_array_equal(obs, [1, 6, 3])
 
 
-def test_filter_by_regexp(meta_df):
-    obs = meta_df.filter(scenario='a_scenari.$', regexp=True)
+def test_filter_by_regexp(test_scm_df):
+    obs = test_scm_df.filter(scenario='a_scenari.$', regexp=True)
     assert obs['scenario'].unique() == 'a_scenario'
 
 
@@ -486,7 +498,7 @@ def test_read_pandas():
 
 def test_filter_meta_index(test_scm_df):
     obs = test_scm_df.filter(scenario='a_scenario2').meta.index
-    exp = pd.MultiIndex(levels=[['a_model'], ['a_scenario2']],
+    exp = pd.MultiIndex(levels=[['a_iam'], ['a_scenario2']],
                         labels=[[0], [0]],
                         names=['model', 'scenario'])
     pd.testing.assert_index_equal(obs, exp)
@@ -494,12 +506,12 @@ def test_filter_meta_index(test_scm_df):
 
 def test_meta_idx(test_scm_df):
     # assert that the `drop_duplicates()` in `_meta_idx()` returns right length
-    assert len(_meta_idx(test_scm_df.data)) == 2
+    assert len(test_scm_df.meta) == 2
 
 
 def test_require_variable(test_scm_df):
     obs = test_scm_df.require_variable(variable='Primary Energy|Coal',
-                                   exclude_on_fail=True)
+                                       exclude_on_fail=True)
     assert len(obs) == 1
     assert obs.loc[0, 'scenario'] == 'a_scenario2'
 
@@ -526,7 +538,7 @@ def test_validate_all_pass(test_scm_df):
 
 def test_validate_nonexisting(test_scm_df):
     obs = test_scm_df.validate({'Primary Energy|Coal': {'up': 2}},
-                           exclude_on_fail=True)
+                               exclude_on_fail=True)
     assert len(obs) == 1
     assert obs['scenario'].values[0] == 'a_scenario'
 
@@ -536,7 +548,7 @@ def test_validate_nonexisting(test_scm_df):
 
 def test_validate_up(test_scm_df):
     obs = test_scm_df.validate({'Primary Energy': {'up': 6.5}},
-                           exclude_on_fail=False)
+                               exclude_on_fail=False)
     assert len(obs) == 1
     assert obs['year'].values[0] == 2010
 
@@ -559,11 +571,11 @@ def test_validate_both(test_scm_df):
 
 def test_validate_year(test_scm_df):
     obs = test_scm_df.validate({'Primary Energy': {'up': 5.0, 'year': 2005}},
-                           exclude_on_fail=False)
+                               exclude_on_fail=False)
     assert obs is None
 
     obs = test_scm_df.validate({'Primary Energy': {'up': 5.0, 'year': 2010}},
-                           exclude_on_fail=False)
+                               exclude_on_fail=False)
     assert len(obs) == 2
 
 
@@ -592,7 +604,7 @@ def test_category_pass(test_scm_df):
     exp = pd.DataFrame(dct).set_index(['model', 'scenario'])['category']
 
     test_scm_df.categorize('category', 'foo', {'Primary Energy':
-                                               {'up': 6, 'year': 2010}})
+                                                   {'up': 6, 'year': 2010}})
     obs = test_scm_df['category']
     pd.testing.assert_series_equal(obs, exp)
 
@@ -630,7 +642,7 @@ def test_load_SSP_database_downloaded_file(test_scm_df_year):
 
 
 def test_load_RCP_database_downloaded_file(test_scm_df_year):
-    obs_df = IamDataFrame(os.path.join(
+    obs_df = ScmDataFrame(os.path.join(
         TEST_DATA_DIR, 'test_RCP_database_raw_download.xlsx')
     )
     pd.testing.assert_frame_equal(obs_df.as_pandas(), test_scm_df_year.as_pandas())
@@ -697,28 +709,28 @@ def test_append_same_scenario(test_scm_df):
     npt.assert_array_equal(ts.iloc[2], ts.iloc[3])
 
 
-def test_append_duplicates(test_scm_df_year):
-    other = copy.deepcopy(test_scm_df_year)
-    pytest.raises(ValueError, test_scm_df_year.append, other=other)
+def test_append_duplicates(test_scm_df):
+    other = copy.deepcopy(test_scm_df)
+    pytest.raises(ValueError, test_scm_df.append, other=other)
 
 
-def test_interpolate(test_scm_df_year):
-    test_scm_df_year.interpolate(2007)
+def test_interpolate(test_scm_df):
+    test_scm_df.interpolate(2007)
     dct = {'model': ['a_model'] * 3, 'scenario': ['a_scenario'] * 3,
            'years': [2005, 2007, 2010], 'value': [1, 3, 6]}
     exp = pd.DataFrame(dct).pivot_table(index=['model', 'scenario'],
                                         columns=['years'], values='value')
     variable = {'variable': 'Primary Energy'}
-    obs = test_scm_df_year.filter(**variable).timeseries()
+    obs = test_scm_df.filter(**variable).timeseries()
     npt.assert_array_equal(obs, exp)
 
     # redo the inpolation and check that no duplicates are added
-    test_scm_df_year.interpolate(2007)
-    assert not test_scm_df_year.filter(**variable).data.duplicated().any()
+    test_scm_df.interpolate(2007)
+    assert not test_scm_df.filter(**variable).data.duplicated().any()
 
 
 def test_set_meta_no_name(test_scm_df):
-    idx = pd.MultiIndex(levels=[['a_scenario'], ['a_model'], ['a_region']],
+    idx = pd.MultiIndex(levels=[['a_scenario'], ['a_iam'], ['a_region']],
                         labels=[[0], [0], [0]],
                         names=['scenario', 'model', 'region'])
     s = pd.Series(data=[0.3], index=idx)
@@ -726,7 +738,7 @@ def test_set_meta_no_name(test_scm_df):
 
 
 def test_set_meta_as_named_series(test_scm_df):
-    idx = pd.MultiIndex(levels=[['a_scenario'], ['a_model'], ['a_region']],
+    idx = pd.MultiIndex(levels=[['a_scenario'], ['a_iam'], ['a_region']],
                         labels=[[0], [0], [0]],
                         names=['scenario', 'model', 'region'])
 
@@ -734,7 +746,7 @@ def test_set_meta_as_named_series(test_scm_df):
     s.name = 'meta_values'
     test_scm_df.set_meta(s)
 
-    idx = pd.MultiIndex(levels=[['a_model'], ['a_scenario', 'a_scenario2']],
+    idx = pd.MultiIndex(levels=[['a_iam'], ['a_scenario', 'a_scenario2']],
                         labels=[[0, 0], [0, 1]], names=['model', 'scenario'])
     exp = pd.Series(data=[0.3, np.nan], index=idx)
     exp.name = 'meta_values'
@@ -744,14 +756,14 @@ def test_set_meta_as_named_series(test_scm_df):
 
 
 def test_set_meta_as_unnamed_series(test_scm_df):
-    idx = pd.MultiIndex(levels=[['a_scenario'], ['a_model'], ['a_region']],
+    idx = pd.MultiIndex(levels=[['a_scenario'], ['a_iam'], ['a_region']],
                         labels=[[0], [0], [0]],
                         names=['scenario', 'model', 'region'])
 
     s = pd.Series(data=[0.3], index=idx)
     test_scm_df.set_meta(s, name='meta_values')
 
-    idx = pd.MultiIndex(levels=[['a_model'], ['a_scenario', 'a_scenario2']],
+    idx = pd.MultiIndex(levels=[['a_iam'], ['a_scenario', 'a_scenario2']],
                         labels=[[0, 0], [0, 1]], names=['model', 'scenario'])
     exp = pd.Series(data=[0.3, np.nan], index=idx)
     exp.name = 'meta_values'
@@ -761,7 +773,7 @@ def test_set_meta_as_unnamed_series(test_scm_df):
 
 
 def test_set_meta_non_unique_index_fail(test_scm_df):
-    idx = pd.MultiIndex(levels=[['a_model'], ['a_scenario'], ['a', 'b']],
+    idx = pd.MultiIndex(levels=[['a_iam'], ['a_scenario'], ['a', 'b']],
                         labels=[[0, 0], [0, 0], [0, 1]],
                         names=['model', 'scenario', 'region'])
     s = pd.Series([0.4, 0.5], idx)
@@ -769,7 +781,7 @@ def test_set_meta_non_unique_index_fail(test_scm_df):
 
 
 def test_set_meta_non_existing_index_fail(test_scm_df):
-    idx = pd.MultiIndex(levels=[['a_model', 'fail_model'],
+    idx = pd.MultiIndex(levels=[['a_iam', 'fail_model'],
                                 ['a_scenario', 'fail_scenario']],
                         labels=[[0, 1], [0, 1]], names=['model', 'scenario'])
     s = pd.Series([0.4, 0.5], idx)
@@ -778,12 +790,12 @@ def test_set_meta_non_existing_index_fail(test_scm_df):
 
 def test_set_meta_by_df(test_scm_df):
     df = pd.DataFrame([
-        ['a_model', 'a_scenario', 'a_region1', 1],
+        ['a_iam', 'a_scenario', 'a_region1', 1],
     ], columns=['model', 'scenario', 'region', 'col'])
 
     test_scm_df.set_meta(meta=0.3, name='meta_values', index=df)
 
-    idx = pd.MultiIndex(levels=[['a_model'], ['a_scenario', 'a_scenario2']],
+    idx = pd.MultiIndex(levels=[['a_iam'], ['a_scenario', 'a_scenario2']],
                         labels=[[0, 0], [0, 1]], names=['model', 'scenario'])
     exp = pd.Series(data=[0.3, np.nan], index=idx)
     exp.name = 'meta_values'
@@ -796,7 +808,7 @@ def test_set_meta_as_series(test_scm_df):
     s = pd.Series([0.3, 0.4])
     test_scm_df.set_meta(s, 'meta_series')
 
-    idx = pd.MultiIndex(levels=[['a_model'],
+    idx = pd.MultiIndex(levels=[['a_iam'],
                                 ['a_scenario', 'a_scenario2']],
                         labels=[[0, 0], [0, 1]], names=['model', 'scenario'])
 
@@ -810,7 +822,7 @@ def test_set_meta_as_series(test_scm_df):
 def test_set_meta_as_int(test_scm_df):
     test_scm_df.set_meta(3.2, 'meta_int')
 
-    idx = pd.MultiIndex(levels=[['a_model'],
+    idx = pd.MultiIndex(levels=[['a_iam'],
                                 ['a_scenario', 'a_scenario2']],
                         labels=[[0, 0], [0, 1]], names=['model', 'scenario'])
 
@@ -823,7 +835,7 @@ def test_set_meta_as_int(test_scm_df):
 def test_set_meta_as_str(test_scm_df):
     test_scm_df.set_meta('testing', name='meta_str')
 
-    idx = pd.MultiIndex(levels=[['a_model'],
+    idx = pd.MultiIndex(levels=[['a_iam'],
                                 ['a_scenario', 'a_scenario2']],
                         labels=[[0, 0], [0, 1]], names=['model', 'scenario'])
 
@@ -840,7 +852,7 @@ def test_set_meta_as_str_list(test_scm_df):
 
 
 def test_set_meta_as_str_by_index(test_scm_df):
-    idx = pd.MultiIndex(levels=[['a_model'], ['a_scenario']],
+    idx = pd.MultiIndex(levels=[['a_iam'], ['a_scenario']],
                         labels=[[0], [0]], names=['model', 'scenario'])
 
     test_scm_df.set_meta('foo', 'meta_str', idx)
@@ -997,7 +1009,7 @@ def test_rename_index_fail(test_scm_df):
 
 
 def test_rename_index(test_scm_df):
-    mapping = {'model': {'a_model': 'b_model'},
+    mapping = {'model': {'a_iam': 'b_model'},
                'scenario': {'a_scenario': 'b_scen'}}
     obs = test_scm_df.rename(mapping)
 
@@ -1021,7 +1033,7 @@ def test_rename_index(test_scm_df):
 
 
 def test_convert_unit():
-    df = IamDataFrame(pd.DataFrame([
+    df = ScmDataFrame(pd.DataFrame([
         ['model', 'scen', 'SST', 'test_1', 'A', 1, 5],
         ['model', 'scen', 'SDN', 'test_2', 'unit', 2, 6],
         ['model', 'scen', 'SST', 'test_3', 'C', 3, 7],
@@ -1033,7 +1045,7 @@ def test_convert_unit():
 
     obs = df.convert_unit(unit_conv).data.reset_index(drop=True)
 
-    exp = IamDataFrame(pd.DataFrame([
+    exp = ScmDataFrame(pd.DataFrame([
         ['model', 'scen', 'SST', 'test_1', 'B', 5, 25],
         ['model', 'scen', 'SDN', 'test_2', 'unit', 2, 6],
         ['model', 'scen', 'SST', 'test_3', 'D', 9, 21],

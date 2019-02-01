@@ -1,15 +1,25 @@
+import copy
 import os
+import warnings
 from datetime import datetime
 from logging import getLogger
 
 import dateutil
+import numpy as np
 import pandas as pd
 from dateutil import parser
 from pyam import IamDataFrame
+from pyam.core import _raise_filter_error
 from pyam.utils import (
     isstr,
     META_IDX,
-    IAMC_IDX
+    IAMC_IDX,
+    years_match,
+    month_match,
+    day_match,
+    datetime_match,
+    hour_match,
+    pattern_match
 )
 
 logger = getLogger(__name__)
@@ -145,7 +155,7 @@ class ScmDataFrameBase(IamDataFrame):
         else:
             _data = read_files(data, **kwargs)
 
-        self._data, self.time_col, self.extra_cols, self.meta = _data
+        self._data, self.time_col, self.extra_cols, extra_data = _data
         # cast time_col to desired format
         if self.time_col == 'year':
             self._format_year_col()
@@ -155,15 +165,36 @@ class ScmDataFrameBase(IamDataFrame):
         # self._LONG_IDX = IAMC_IDX + [self.time_col] + self.extra_cols
 
         # define a dataframe for categorization and other metadata indicators
-        self.meta = self.meta.set_index(META_IDX)
+        self.meta = extra_data[META_IDX].drop_duplicates().set_index(META_IDX)
+        self.headers = extra_data #
         self.reset_exclude()
 
         # execute user-defined code
         # if 'exec' in run_control():
         #    self._execute_run_control()
 
+    def __getitem__(self, key):
+        _key_check = [key] if isstr(key) else key
+        if key is self.time_col:
+            return pd.Series(self._data.index)
+        if set(_key_check).issubset(self.meta.columns):
+            return self.meta.__getitem__(key)
+        else:
+            return self.headers.__getitem__(key)
+
+    def __setitem__(self, key, value):
+        _key_check = [key] if isstr(key) else key
+
+        if key is self.time_col:
+            self._data.index = value
+            return value
+        if set(_key_check).issubset(self.meta.columns):
+            return self.meta.__setitem__(key, value)
+        else:
+            return self.headers.__setitem__(key, value)
+
     def _format_year_col(self):
-        self.index = self._data.index.astype('int')
+        self._data.index = self._data.index.astype('int')
 
     def _format_datetime_col(self):
         if isinstance(self._data.index[0], str):
@@ -186,7 +217,151 @@ class ScmDataFrameBase(IamDataFrame):
         df = self._data.T.reset_index()
         dt_cols = set(df.columns) - set(IAMC_IDX) - set(self.extra_cols)
         df = pd.melt(df, id_vars=IAMC_IDX + self.extra_cols, var_name=self.time_col, value_vars=sorted(dt_cols),
-                       value_name='value')
+                     value_name='value')
         if self.time_col == 'year':
             df['year'] = df['year'].astype('int64')
         return df
+
+    def filter(self, keep=True, inplace=False, **kwargs):
+        """Return a filtered IamDataFrame (i.e., a subset of current data)
+
+        Parameters
+        ----------
+        keep: bool, default True
+            keep all scenarios satisfying the filters (if True) or the inverse
+        inplace: bool, default False
+            if True, do operation inplace and return None
+        kwargs:
+            The following columns are available for filtering:
+             - metadata columns: filter by category assignment
+             - 'model', 'scenario', 'region', 'variable', 'unit':
+               string or list of strings, where `*` can be used as a wildcard
+             - 'level': the maximum "depth" of IAM variables (number of '|')
+               (exluding the strings given in the 'variable' argument)
+             - 'year': takes an integer, a list of integers or a range
+               note that the last year of a range is not included,
+               so `range(2010, 2015)` is interpreted as `[2010, ..., 2014]`
+             - arguments for filtering by `datetime.datetime`
+               ('month', 'hour', 'time')
+             - 'regexp=True' disables pseudo-regexp syntax in `pattern_match()`
+        """
+        _keep_ts, _keep_cols = self._apply_filters(kwargs)
+        _keep_ts = _keep_ts if keep else ~_keep_ts
+        _keep_cols = _keep_cols if keep else ~_keep_cols
+        ret = copy.deepcopy(self) if not inplace else self
+        ret._data = ret._data[ret._data.columns[_keep_cols]]
+        ret._data = ret._data[_keep_ts]
+        ret.headers = ret.headers[_keep_cols]
+
+        idx = pd.MultiIndex.from_tuples(
+            pd.unique(list(zip(ret['model'], ret['scenario']))),
+            names=('model', 'scenario')
+        )
+        if len(idx) == 0:
+            logger.warning('Filtered IamDataFrame is empty!')
+
+        ret.meta = ret.meta.loc[idx]
+
+        if not inplace:
+            return ret
+
+    def _apply_filters(self, filters):
+        """Determine rows to keep in data for given set of filters
+
+        Parameters
+        ----------
+        filters: dict
+            dictionary of filters ({col: values}}); uses a pseudo-regexp syntax
+            by default, but accepts `regexp: True` to use regexp directly
+        """
+        regexp = filters.pop('regexp', False)
+        keep_ts = np.array([True] * len(self._data))
+        keep_col = np.array([True] * len(self.headers))
+        headers = self.headers.merge(self.meta, right_index=True, left_on=('model', 'scenario'))
+
+        # filter by columns and list of values
+        for col, values in filters.items():
+            if col == 'variable':
+                level = filters['level'] if 'level' in filters else None
+                keep_col &= pattern_match(headers[col], values, level, regexp).values
+            elif col in headers.columns:
+                keep_col &= pattern_match(headers[col], values, regexp=regexp).values
+            elif col == 'year':
+                if self.time_col is 'time':
+                    keep_ts &= years_match(self._data.index.apply(lambda x: x.year), values)
+                else:
+                    keep_ts &= years_match(self._data.index, values)
+
+            elif col == 'month':
+                if self.time_col is not 'time':
+                    _raise_filter_error(col)
+                keep_ts &= month_match(self._data.index.apply(lambda x: x.month), values)
+
+            elif col == 'day':
+                if self.time_col is not 'time':
+                    _raise_filter_error(col)
+                if isinstance(values, str):
+                    wday = True
+                elif isinstance(values, list) and isinstance(values[0], str):
+                    wday = True
+                else:
+                    wday = False
+
+                if wday:
+                    days = self._data.index.apply(lambda x: x.weekday())
+                else:  # ints or list of ints
+                    days = self._data.index.apply(lambda x: x.day)
+
+                keep_ts &= day_match(days, values)
+
+            elif col == 'hour':
+                if self.time_col is not 'time':
+                    _raise_filter_error(col)
+                keep_ts &= hour_match(self._data.index.apply(lambda x: x.hour), values)
+
+            elif col == 'time':
+                if self.time_col is not 'time':
+                    _raise_filter_error(col)
+                keep_ts &= datetime_match(self._data.index, values)
+
+            elif col == 'level':
+                if 'variable' not in filters.keys():
+                    keep_col &= pattern_match(headers['variable'], '*', values, regexp=regexp)
+                else:
+                    continue
+
+            else:
+                _raise_filter_error(col)
+
+        return keep_ts, keep_col
+
+    def head(self, *args, **kwargs):
+        return self._data.head(*args, **kwargs)
+
+    def tail(self, *args, **kwargs):
+        return self._data.tail(*args, **kwargs)
+
+    def models(self):
+        """Get a list of models"""
+        return pd.Series(self.meta.reset_index()['model'].unique(), name='model')
+
+    def scenarios(self):
+        """Get a list of scenarios"""
+        return pd.Series(self.meta.reset_index()['scenario'].unique(), name='scenario')
+
+    def regions(self):
+        """Get a list of regions"""
+        return pd.Series(self.headers['region'].unique(), name='region')
+
+    def variables(self, include_units=False):
+        """Get a list of variables
+
+        Parameters
+        ----------
+        include_units: boolean, default False
+            include the units
+        """
+        if include_units:
+            return self.headers[['variable', 'unit']].drop_duplicates()
+        else:
+            return pd.Series(self.headers['variable'].unique(), name='variable')
