@@ -211,12 +211,12 @@ def test_timeseries_parameter_view_aggregation(core, start_time):
     land_emms = np.array([0.05, 0.1, 0.2])
 
     parameterset = core.parameters
-    
+
     fossil_writable = parameterset.get_writable_timeseries_view(
         ("Emissions", "CO2", "Fossil"), ("World"), "GtC/yr", start_time, 24 * 3600
     )
     fossil_writable.set_series(fossil_emms)
-    
+
     land_writable = parameterset.get_writable_timeseries_view(
         ("Emissions", "CO2", "Land"), ("World"), "GtC/yr", start_time, 24 * 3600
     )
