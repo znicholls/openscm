@@ -5,10 +5,13 @@ from dateutil import parser
 from pyam import IamDataFrame
 
 
-class OpenSCMDataFrameBase(IamDataFrame):
+class ScmDataFrameBase(IamDataFrame):
     """This base is the class other libraries can subclass
 
-    Having such a subclass avoids a potential circularity where e.g. openscm imports OpenSCMDataFrame as well as pymagicc, but pymagicc wants to import OpenSCMDataFrame and hence to try and import OpenSCMDataFrame you have to import OpenSCMDataFrame itself (hence the circularity).
+    Having such a subclass avoids a potential circularity where e.g. openscm imports
+    ScmDataFrame as well as pymagicc, but pymagicc wants to import ScmDataFrame and
+    hence to try and import ScmDataFrame you have to import ScmDataFrame itself (hence
+    the circularity).
     """
     def _format_datetime_col(self):
         if isinstance(self.data["time"].iloc[0], str):
@@ -24,7 +27,8 @@ class OpenSCMDataFrameBase(IamDataFrame):
             raise ValueError(error_msg)
 
     def append(self, other, ignore_meta_conflict=False, inplace=False, **kwargs):
-        if not isinstance(other, OpenSCMDataFrameBase):
-            other = OpenSCMDataFrameBase(other, **kwargs)
+        if not isinstance(other, ScmDataFrameBase):
+            other = ScmDataFrameBase(other, **kwargs)
 
         super().append(other, ignore_meta_conflict=ignore_meta_conflict, inplace=inplace)
+
