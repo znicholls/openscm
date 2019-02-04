@@ -32,4 +32,3 @@ class ScmDataFrameBase(IamDataFrame):
             other = ScmDataFrameBase(other, **kwargs)
 
         super().append(other, inplace=True)
-        
