@@ -26,8 +26,5 @@ class ScmDataFrame(ScmDataFrameBase):
     of data, completeness of variables provided, running of simple climate models)
     as well as a number of visualization and plotting tools.
     """
-    def long(self):
-        pass
-
     def as_iam(self):
         return IamDataFrame(self.data)
