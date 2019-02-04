@@ -38,6 +38,7 @@ Schema
     adapters
     timeframes
     units
+    scenarios
 
 .. toctree::
     :maxdepth: 2

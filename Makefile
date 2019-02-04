@@ -59,7 +59,7 @@ venv: setup.py
 	./venv/bin/pip install -e .[dev]
 	touch venv
 
-test: venv
+test: setup-dev
 	./venv/bin/pytest -rfsxEX --cov=openscm tests --cov-report term-missing
 
 coverage: test
