@@ -1,4 +1,8 @@
+import numpy as np
+
+
 from openscm.scenarios import rcps
+
 
 def test_rcp26():
     value = rcps.filter(
@@ -8,7 +12,8 @@ def test_rcp26():
         scenario="RCP26"
     )["value"]
 
-    assert value == 12
+    assert not value.empty
+    np.testing.assert_allclose(value, 324.46375)
 
 def test_rcp45():
     value = rcps.filter(
@@ -18,7 +23,8 @@ def test_rcp45():
         scenario="RCP45"
     )["value"]
     
-    assert value == 12
+    assert not value.empty
+    np.testing.assert_allclose(value, 0)
 
 def test_rcp60():
     value = rcps.filter(
@@ -28,7 +34,8 @@ def test_rcp60():
         scenario="RCP60"
     )["value"]
     
-    assert value == 12
+    assert not value.empty
+    np.testing.assert_allclose(value, 10.61878)
 
 def test_rcp85():
     value = rcps.filter(
@@ -38,6 +45,5 @@ def test_rcp85():
         scenario="RCP85"
     )["value"]
     
-    assert value == 12
-
-
+    assert not value.empty
+    np.testing.assert_allclose(value, 13.344)

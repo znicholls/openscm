@@ -26,3 +26,9 @@ class ScmDataFrameBase(IamDataFrame):
                 bad_values
             )
             raise ValueError(error_msg)
+
+    def append(self, other, **kwargs):
+        if not isinstance(other, ScmDataFrameBase):
+            other = ScmDataFrameBase(other, **kwargs)
+
+        super().append(other, inplace=True)
