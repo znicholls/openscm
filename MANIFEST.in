@@ -1,2 +1,8 @@
+include README.rst
+include LICENSE
+include CHANGELOG.rst
+
+recursive-include openscm/ *.csv
+
 include versioneer.py
 include openscm/_version.py

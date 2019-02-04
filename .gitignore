@@ -17,3 +17,6 @@ dist/
 docs/_build
 venv/
 htmlcov/
+
+# raw rcp data
+data/rcps/*.DAT

@@ -1,3 +1,58 @@
+DATA_DIR = ./data
+
+
+RCPS_DIR=$(DATA_DIR)/rcps
+RCPHISTORICAL_EMISSIONS_RAW=$(RCPS_DIR)/20THCENTURY_EMISSIONS.DAT
+RCP26_EMISSIONS_RAW=$(RCPS_DIR)/RCP26_EMISSIONS.DAT
+RCP45_EMISSIONS_RAW=$(RCPS_DIR)/RCP45_EMISSIONS.DAT
+RCP60_EMISSIONS_RAW=$(RCPS_DIR)/RCP60_EMISSIONS.DAT
+RCP85_EMISSIONS_RAW=$(RCPS_DIR)/RCP85_EMISSIONS.DAT
+RCPS_EMISSIONS_RAW=\
+	$(RCPHISTORICAL_EMISSIONS_RAW) \
+	$(RCP26_EMISSIONS_RAW) \
+	$(RCP45_EMISSIONS_RAW) \
+	$(RCP60_EMISSIONS_RAW) \
+	$(RCP85_EMISSIONS_RAW)
+
+SCENARIOS_DIR=./openscm/scenarios
+RCPS_EMISSIONS= \
+	$(SCENARIOS_DIR)/20thcentury_emissions.csv \
+	$(SCENARIOS_DIR)/rcp26_emissions.csv \
+	$(SCENARIOS_DIR)/rcp45_emissions.csv \
+	$(SCENARIOS_DIR)/rcp60_emissions.csv \
+	$(SCENARIOS_DIR)/rcp85_emissions.csv
+
+.PHONY: setup-dev
+setup-dev: $(RCPS_EMISSIONS)
+
+$(RCPS_EMISSIONS): venv $(RCPS_EMISSIONS_RAW) scripts/save_rcps_in_openscm_format.py
+	./venv/bin/python scripts/save_rcps_in_openscm_format.py
+
+$(RCPHISTORICAL_EMISSIONS_RAW):
+	mkdir -p $(RCPS_DIR)
+	wget http://www.pik-potsdam.de/~mmalte/rcps/data/20THCENTURY_EMISSIONS.DAT -O $@
+	touch $@
+
+$(RCP26_EMISSIONS_RAW):
+	mkdir -p $(RCPS_DIR)
+	wget http://www.pik-potsdam.de/~mmalte/rcps/data/RCP3PD_EMISSIONS.DAT -O $@
+	touch $@
+
+$(RCP45_EMISSIONS_RAW):
+	mkdir -p $(RCPS_DIR)
+	wget http://www.pik-potsdam.de/~mmalte/rcps/data/RCP45_EMISSIONS.DAT -O $@
+	touch $@
+
+$(RCP60_EMISSIONS_RAW):
+	mkdir -p $(RCPS_DIR)
+	wget http://www.pik-potsdam.de/~mmalte/rcps/data/RCP6_EMISSIONS.DAT -O $@
+	touch $@
+
+$(RCP85_EMISSIONS_RAW):
+	mkdir -p $(RCPS_DIR)
+	wget http://www.pik-potsdam.de/~mmalte/rcps/data/RCP85_EMISSIONS.DAT -O $@
+	touch $@
+
 venv: setup.py
 	[ -d ./venv ] || python3 -m venv ./venv
 	./venv/bin/pip install --upgrade pip
@@ -46,5 +101,6 @@ test-pypi-install: venv
 
 clean:
 	rm -rf venv
+	rm -f openscm/scenarios/*.csv
 
 .PHONY: clean coverage test test-all black flake8 docs publish-on-pypi test-pypi-install
