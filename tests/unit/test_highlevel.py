@@ -642,6 +642,14 @@ def test_load_RCP_database_downloaded_file(test_scm_df_year):
     pd.testing.assert_frame_equal(obs_df.as_pandas(), test_scm_df_year.as_pandas())
 
 
+def test_append_doesnt_call_mock(test_scm_df):
+    other = test_scm_df.filter(scenario='a_scenario2') \
+        .rename({'scenario': {'a_scenario2': 'a_scenario3'}})
+    with patch('openscm.scmdataframebase.ScmDataFrameBase.data', new_callable=PropertyMock) as mock_data:
+        test_scm_df.append(other)
+        mock_data.assert_not_called()
+
+
 def test_append_other_scenario(test_scm_df):
     other = test_scm_df.filter(scenario='a_scenario2') \
         .rename({'scenario': {'a_scenario2': 'a_scenario3'}})
@@ -660,9 +668,9 @@ def test_append_other_scenario(test_scm_df):
 
     # assert that merging of meta works as expected
     exp = pd.DataFrame([
-        ['a_model', 'a_scenario', False, 0, 'a', np.nan],
-        ['a_model', 'a_scenario2', False, 1, 'b', np.nan],
-        ['a_model', 'a_scenario3', False, 2, np.nan, 'x'],
+        ['a_iam', 'a_scenario', False, 0, 'a', np.nan],
+        ['a_iam', 'a_scenario2', False, 1, 'b', np.nan],
+        ['a_iam', 'a_scenario3', False, 2, np.nan, 'x'],
     ], columns=['model', 'scenario', 'exclude', 'col1', 'col2', 'col3']
     ).set_index(['model', 'scenario'])
 

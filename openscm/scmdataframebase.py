@@ -1,6 +1,5 @@
 import copy
 import os
-import warnings
 from datetime import datetime
 from logging import getLogger
 
@@ -95,7 +94,7 @@ def format_data(df):
             msg = 'invalid time format, must have either `year` or `time`!'
             raise ValueError(msg)
         extra_cols = list(set(cols) - set(IAMC_IDX + [time_col, 'value']))
-        df = df.pivot_table(columns=IAMC_IDX + extra_cols, index='year').value
+        df = df.pivot_table(columns=IAMC_IDX + extra_cols, index=time_col).value
     else:
         # if in wide format, check if columns are years (int) or datetime
         cols = set(df.columns) - set(IAMC_IDX)
@@ -118,8 +117,10 @@ def format_data(df):
             msg = 'invalid column format, must be either years or `datetime`!'
             raise ValueError(msg)
 
-        col_idx = pd.MultiIndex.from_frame(df[IAMC_IDX + extra_cols])
-        df = df[cols - set(extra_cols)].T
+        # TODO: use pd.MultiIndex.from_frame when using pandas>=0.24.0
+        #col_idx = pd.MultiIndex.from_frame(df[IAMC_IDX + extra_cols])
+        col_idx = pd.MultiIndex.from_arrays(df[IAMC_IDX + extra_cols].values.T, names=IAMC_IDX + extra_cols)
+        df = df[list(cols - set(extra_cols))].T
         df.columns = col_idx
 
     # cast value columns to numeric, drop NaN's, sort data
@@ -128,7 +129,7 @@ def format_data(df):
     df.sort_values(META_IDX + ['variable', 'region'] + extra_cols,
                    inplace=True, axis=1)
 
-    return df, time_col, extra_cols, orig_df[set(IAMC_IDX + extra_cols)]
+    return df, time_col, extra_cols, orig_df[IAMC_IDX + extra_cols]
 
 
 class ScmDataFrameBase(IamDataFrame):
@@ -169,7 +170,7 @@ class ScmDataFrameBase(IamDataFrame):
 
         # define a dataframe for categorization and other metadata indicators
         self.meta = extra_data[META_IDX].drop_duplicates().set_index(META_IDX)
-        self.headers = extra_data #
+        self.headers = extra_data  #
         self.reset_exclude()
 
         # execute user-defined code
@@ -410,3 +411,72 @@ class ScmDataFrameBase(IamDataFrame):
             flag scenarios missing the required variables as `exclude: True`
         """
         raise NotImplementedError
+
+    def append(self, other, ignore_meta_conflict=False, inplace=False,
+               **kwargs):
+        """Append any castable object to this IamDataFrame.
+        Columns in `other.meta` that are not in `self.meta` are always merged,
+        duplicate region-variable-unit-year rows raise a ValueError.
+
+        Parameters
+        ----------
+        other: pyam.IamDataFrame, ixmp.TimeSeries, ixmp.Scenario,
+        pd.DataFrame or data file
+            An IamDataFrame, TimeSeries or Scenario (requires `ixmp`),
+            pandas.DataFrame or data file with IAMC-format data columns
+        ignore_meta_conflict : bool, default False
+            If False and `other` is an IamDataFrame, raise an error if
+            any meta columns present in `self` and `other` are not identical.
+        inplace : bool, default False
+            If True, do operation inplace and return None
+        """
+        if not isinstance(other, IamDataFrame):
+            other = ScmDataFrameBase(other, **kwargs)
+            ignore_meta_conflict = True
+
+        if self.time_col is not other.time_col:
+            raise ValueError('incompatible time format (years vs. datetime)!')
+
+        ret = copy.deepcopy(self) if not inplace else self
+
+        diff = other.meta.index.difference(ret.meta.index)
+        intersect = other.meta.index.intersection(ret.meta.index)
+
+        # merge other.meta columns not in self.meta for existing scenarios
+        if not intersect.empty:
+            # if not ignored, check that overlapping meta dataframes are equal
+            if not ignore_meta_conflict:
+                cols = [i for i in other.meta.columns if i in ret.meta.columns]
+                if not ret.meta.loc[intersect, cols].equals(
+                        other.meta.loc[intersect, cols]):
+                    conflict_idx = (
+                        pd.concat([ret.meta.loc[intersect, cols],
+                                   other.meta.loc[intersect, cols]]
+                                  ).drop_duplicates()
+                        .index.drop_duplicates()
+                    )
+                    msg = 'conflict in `meta` for scenarios {}'.format(
+                        [i for i in pd.DataFrame(index=conflict_idx).index])
+                    raise ValueError(msg)
+
+            cols = [i for i in other.meta.columns if i not in ret.meta.columns]
+            _meta = other.meta.loc[intersect, cols]
+            ret.meta = ret.meta.merge(_meta, how='outer',
+                                      left_index=True, right_index=True)
+
+        # join other.meta for new scenarios
+        if not diff.empty:
+            # sorting not supported by ` pd.append()`  prior to version 23
+            sort_kwarg = {} if int(pd.__version__.split('.')[1]) < 23 \
+                else dict(sort=False)
+            ret.meta = ret.meta.append(other.meta.loc[diff, :], **sort_kwarg)
+
+        # append other.data (verify integrity for no duplicates)
+        ret._data = pd.concat([ret._data, other._data], axis=1, verify_integrity=True)
+        # merge extra columns in `data` and set `LONG_IDX`
+        ret.extra_cols += [i for i in other.extra_cols
+                           if i not in ret.extra_cols]
+        ret._LONG_IDX = IAMC_IDX + [ret.time_col] + ret.extra_cols
+
+        if not inplace:
+            return ret
