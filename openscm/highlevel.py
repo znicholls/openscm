@@ -7,6 +7,7 @@ from .core import Core
 from .scmdataframebase import ScmDataFrameBase
 from pyam import IamDataFrame
 
+
 class OpenSCM(Core):
     """
     High-level OpenSCM class.
@@ -26,5 +27,6 @@ class ScmDataFrame(ScmDataFrameBase):
     of data, completeness of variables provided, running of simple climate models)
     as well as a number of visualization and plotting tools.
     """
+
     def as_iam(self):
         return IamDataFrame(self.data)
