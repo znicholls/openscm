@@ -128,7 +128,7 @@ def convert_parameter_set_to_openscmdf(
 
             dataframes.append(pd.DataFrame(tdf))
 
-    result = OpenSCMDataFrame(pd.concat(dataframes))
+    result = ScmDataFrame(pd.concat(dataframes))
 
     return result
 
@@ -157,7 +157,7 @@ def run(drivers, model_configurations):
         for (scenario, model), sdf in drivers.data.groupby(["scenario", "model"]):
             print("running {}".format(scenario))
             parameter_set_scenario = convert_openscm_df_to_parameter_set(
-                OpenSCMDataFrame(sdf.copy())
+                ScmDataFrame(sdf.copy())
             )
             runner.setup_scenario(
                 parameters=parameter_set_scenario,

@@ -58,7 +58,7 @@ setup(
             "matplotlib",
         ],
         "models": [
-            "pymagicc @ git+https://github.com/openclimatedata/pymagicc.git@follow-openscm-new-api"
+            "pymagicc @ git+https://github.com/openclimatedata/pymagicc.git@master"
         ]
     },
 )
