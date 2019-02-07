@@ -4,6 +4,7 @@ Changelog
 master
 ------
 
+- (`#94 <https://github.com/openclimatedata/openscm/pull/94>`_) Refactor ScmDataFrame to be faster and more specific to SCM data
 - (`#89 <https://github.com/openclimatedata/openscm/pull/89>`_) Add ``openscm.scenarios`` module
 - (`#87 <https://github.com/openclimatedata/openscm/pull/87>`_) Added aggregated read of parameter
 - (`#86 <https://github.com/openclimatedata/openscm/pull/86>`_) Made top level of region explicit, rather than allowing access via ``()`` and made requests robust to string inputs
