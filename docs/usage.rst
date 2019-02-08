@@ -26,6 +26,8 @@ In the low-level API parameters are expected to be identified by tuples of strin
 See :ref:`parameter-hierarchy` for the standard parameters in OpenSCM.
 
 
+.. _timeframes:
+
 Time frames
 -----------
 
@@ -33,6 +35,8 @@ Timeseries parameters are always given with a corresponding time frame, which co
 
 In the low-level API time points are given in seconds since ``1970-01-01 00:00:00``, while time period lengths are specified in seconds. The high-level API additionally accepts string values and ``datetime.datetime`` objects.
 
+
+.. _low-level-interface:
 
 Low-level interface
 -------------------
