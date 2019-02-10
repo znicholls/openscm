@@ -569,6 +569,7 @@ def test_append(test_scm_df):
     other.set_meta("b", name="col2")
 
     df = test_scm_df.append(other)
+    assert isinstance(df, ScmDataFrame)
 
     # check that the new meta.index is updated, but not the original one
     assert "col1" in test_scm_df.meta
@@ -586,7 +587,25 @@ def test_append(test_scm_df):
 
 def test_append_duplicates(test_scm_df):
     other = copy.deepcopy(test_scm_df)
-    pytest.raises(ValueError, test_scm_df.append, other=other)
+    other['time'] = [2020, 2030]
+    other._format_datetime_col()
+
+    res = test_scm_df.append(other)
+
+    obs = res.filter(scenario='a_scenario2').timeseries().squeeze()
+    exp = [2., 7., 2., 7.]
+    npt.assert_almost_equal(obs, exp)
+
+
+def test_append_duplicate_times(test_scm_df):
+    other = copy.deepcopy(test_scm_df)
+    other._data *= 2
+
+    res = test_scm_df.append(other)
+
+    obs = res.filter(scenario='a_scenario2').timeseries().squeeze()
+    exp = [(2. + 4.) / 2, (7. + 14.) / 2]
+    npt.assert_almost_equal(obs, exp)
 
 
 @pytest.mark.skip

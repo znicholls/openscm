@@ -134,20 +134,50 @@ def from_ts(df, index=None, **columns):
 
 
 def df_append(dfs, inplace=False):
+    """
+    Append together many dataframes into a single ScmDataFrame
+
+    When appending many dataframes it may be more efficient to call this routine once with a list of ScmDataFrames, then using
+    `ScmDataFrame.append`. If timeseries with duplicate metadata are found, the timeseries are appended. For duplicate timeseries,
+    values fallings on the same timestep are averaged.
+
+    Parameters
+    ----------
+    dfs: list of ScmDataFrameBase object, string or pd.DataFrame.
+    The dataframes to append. Values will be attempted to be cast to non ScmDataFrameBase.
+
+    inplace : bool
+    If True, then the operation updates the first item in dfs
+
+    Returns
+    -------
+    ScmDataFrameBase-like object containing the merged data. The resultant class will be determined by the type of the first object
+    in dfs
+
+    """
     dfs = [
         df if isinstance(df, ScmDataFrameBase) else ScmDataFrameBase(df) for df in dfs
     ]
-    ret = copy.deepcopy(dfs[0]) if not inplace else dfs[0]
 
-    meta = pd.concat([d._meta for d in dfs], ignore_index=True, sort=False)
-    data = pd.concat([d._data for d in dfs], axis=1, ignore_index=True, sort=False)
-    data.columns = meta.index
+    data = pd.concat([d.timeseries() for d in dfs])
+    data = data.groupby(data.index.names).mean()
 
-    ret._meta = meta
-    ret._data = data
+    all_meta = pd.concat([d._meta for d in dfs])
 
-    if meta.duplicated().any():
-        raise ValueError("Duplicate timeseries")
+    if not inplace:
+        ret = dfs[0].__class__(data)
+    else:
+        ret = dfs[0]
+        ret._data, ret._meta = format_data(data)
+
+        ret._data.index = ret._data.index.astype("object")
+        ret._data.index.name = "time"
+        ret._data = ret._data.astype(float)
+
+    # Merge in any extra meta fields
+    if any([n not in data.index.names for n in all_meta.columns]):
+        ret._meta = pd.merge(ret._meta, all_meta, left_on=data.index.names, right_on=data.index.names,)
+    ret._sort_meta_cols()
 
     if not inplace:
         return ret
@@ -215,6 +245,7 @@ class ScmDataFrameBase(object):
         # pandas can't convert to DateTimeIndex
         _df.index = _df.index.astype("object")
         _df.index.name = "time"
+        _df = _df.astype(float)
         self._data, self._meta = (_df, _meta)
         self._sort_meta_cols()
         self._format_datetime_col()
@@ -265,12 +296,12 @@ class ScmDataFrameBase(object):
             self._data.index = pd.Index(value, dtype="object", name="time")
             return value
         if set(_key_check).issubset(self.meta.columns):
-            return self.meta.__setitem__(key, value)
+            return self._meta.__setitem__(key, value)
 
     def _format_datetime_col(self):
         time_srs = self["time"]
 
-        if isinstance(time_srs.iloc[0], datetime):
+        if isinstance(time_srs.iloc[0], (datetime, cftime.datetime)):
             pass
         elif isinstance(time_srs.iloc[0], int):
             self["time"] = [datetime(y, 1, 1) for y in to_int(time_srs)]
@@ -294,7 +325,7 @@ class ScmDataFrameBase(object):
 
             self["time"] = time_srs.apply(convert_str_to_datetime)
 
-        not_datetime = [not isinstance(x, datetime) for x in self["time"]]
+        not_datetime = [not isinstance(x, (datetime, cftime.datetime)) for x in self["time"]]
         if any(not_datetime):
             bad_values = self["time"][not_datetime]
             error_msg = "All time values must be convertible to datetime. The following values are not:\n{}".format(
@@ -479,14 +510,14 @@ class ScmDataFrameBase(object):
     def append(self, other, inplace=False, **kwargs):
         """Appends additional timeseries from a castable object to the current dataframe
 
-        The appending does not occur along a time series
+        See ``df_append``
 
         Parameters
         ----------
         other: openscm.ScmDataFrame or something which can be cast to ScmDataFrameBase
         """
         if not isinstance(other, ScmDataFrameBase):
-            other = ScmDataFrameBase(other, **kwargs)
+            other = self.__class__(other, **kwargs)
 
         return df_append([self, other], inplace=inplace)
 
@@ -688,6 +719,7 @@ class ScmDataFrameBase(object):
                     # To work around some limitations the maximum that can be interpolated over we are using a float index
                     self._resampler._full_index = [(c - self.target[0]).total_seconds() for c in self.target]
                     self._resampler._obj['time'] = [(c - self.target[0]).total_seconds() for c in self.orig_index]
+                    self._resampler._unique_coord = xr.IndexVariable(data=self._resampler._full_index, dims=['__resample_dim__'])
 
                 def __getattr__(self, item):
                     resampler = self._resampler
@@ -720,7 +752,6 @@ class ScmDataFrameBase(object):
         df.index = dts
         df.index.name = 'time'
         x = xr.DataArray(df)
-
         # Use a custom resample array to wrap the resampling while returning a ScmDataFrame
         x._resample_cls = get_resampler(self)
         return x.resample(time=rule, **kwargs)
