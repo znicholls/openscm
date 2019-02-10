@@ -608,6 +608,21 @@ def test_append_duplicate_times(test_scm_df):
     npt.assert_almost_equal(obs, exp)
 
 
+def test_append_inplace(test_scm_df):
+    other = copy.deepcopy(test_scm_df)
+    other._data *= 2
+
+    obs = test_scm_df.filter(scenario='a_scenario2').timeseries().squeeze()
+    exp = [2, 7]
+    npt.assert_almost_equal(obs, exp)
+
+    test_scm_df.append(other, inplace=True)
+
+    obs = test_scm_df.filter(scenario='a_scenario2').timeseries().squeeze()
+    exp = [(2. + 4.) / 2, (7. + 14.) / 2]
+    npt.assert_almost_equal(obs, exp)
+
+
 @pytest.mark.skip
 def test_interpolate(test_scm_df):
     test_scm_df.interpolate(2007)

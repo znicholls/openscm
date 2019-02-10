@@ -168,7 +168,7 @@ def df_append(dfs, inplace=False):
         ret = dfs[0].__class__(data)
     else:
         ret = dfs[0]
-        ret._data, ret._meta = format_data(data)
+        ret._data, ret._meta = format_data(data.copy())
 
         ret._data.index = ret._data.index.astype("object")
         ret._data.index.name = "time"
