@@ -8,7 +8,7 @@ import pytest
 import numpy as np
 
 
-from openscm.adapters import MAGICC6, Hector, PH99
+from openscm.adapters import MAGICC6, Hector, PH99, FAIR
 from openscm.core import ParameterSet
 from openscm.errors import ModelNotInitialisedError
 from openscm.scenarios import rcps
@@ -233,6 +233,61 @@ class TestPH99Adapter(_AdapterTester):
             get_comparison_time_for_year(2017),
             res,
             ("Emissions", "CO2"),
+            "World",
+            "GtC / yr",
+            res.start_time,
+            ONE_YEAR_IN_S_INTEGER,
+        )
+
+        assert_core(
+            1.632585,
+            get_comparison_time_for_year(2100),
+            res,
+            ("Surface Temperature"),
+            "World",
+            "K",
+            res.start_time,
+            ONE_YEAR_IN_S_INTEGER,
+        )
+
+
+class TestFAIRAdapter(_AdapterTester):
+    tadapter = FAIR
+
+    def test_initialize(self, test_adapter):
+        assert test_adapter.model is None
+        super().test_initialize(test_adapter)
+        assert test_adapter.model is not None
+
+    def test_set_config(self, test_adapter, test_config_paraset):
+        super().test_set_config(test_adapter, test_config_paraset)
+
+        r0 = 37.3
+        test_config_paraset.get_writable_scalar_view("r0", ("World",), "yr").set(
+            r0 * 1000
+        )
+
+        test_adapter.initialize()
+        test_adapter.set_config(test_config_paraset)
+
+        assert_pint_equal(test_adapter.model.r0, r0 * unit_registry("yr"))
+
+    def test_run(self, test_adapter, test_config_paraset, test_drivers_core):
+        super().test_run(test_adapter, test_config_paraset, test_drivers_core)
+
+        test_adapter.initialize()
+        test_adapter.set_config(test_config_paraset)
+        test_adapter.set_drivers(test_drivers_core)
+        res = test_adapter.run()
+
+        def get_comparison_time_for_year(yr):
+            return convert_datetime_to_openscm_time(datetime.datetime(yr, 1, 1))
+
+        assert_core(
+            10.1457206,
+            get_comparison_time_for_year(2017),
+            res,
+            ("Emissions", "CO2", "MAGICC Fossil and Industrial"),
             "World",
             "GtC / yr",
             res.start_time,
