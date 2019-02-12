@@ -29,9 +29,12 @@ REQUIREMENTS_NOTEBOOKS = ["notebook", "seaborn"]
 REQUIREMENTS_TESTS = ["codecov", "nbval", "pytest", "pytest-cov"]
 REQUIREMENTS_DOCS = ["sphinx>=1.4", "sphinx_rtd_theme", "sphinx-autodoc-typehints"]
 REQUIREMENTS_DEPLOY = ["setuptools>=38.6.0", "twine>=1.11.0", "wheel>=0.31.0"]
-REQUIREMENTS_MODELS = [
-    "pymagicc @ git+https://github.com/openclimatedata/pymagicc.git@master"
-]
+
+MODELS_DEPENDENCIES = {
+    "MAGICC": "pymagicc @ git+https://github.com/openclimatedata/pymagicc.git@master",
+    "FaIR": "fair",
+}
+REQUIREMENTS_MODELS = [r for r in MODELS_DEPENDENCIES.values()]
 
 requirements_dev = [
     *["flake8", "black"],
@@ -48,6 +51,7 @@ requirements_extras = {
     "tests": REQUIREMENTS_TESTS,
     "deploy": REQUIREMENTS_DEPLOY,
     "models": REQUIREMENTS_MODELS,
+    **MODELS_DEPENDENCIES,
     "dev": requirements_dev,
 }
 
