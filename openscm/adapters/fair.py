@@ -139,7 +139,8 @@ class FAIR(Adapter):
         self.name = "FaIR"
         self._drivers = None
         self._config = None
-        self._timestep = ONE_YEAR_IN_S_INTEGER  # FaIR is always on annual timestep
+        self._run_start = np.nan
+        self._timestep = np.nan
         super().__init__()
 
     def initialize(self):
@@ -149,10 +150,11 @@ class FAIR(Adapter):
     def set_drivers(self, core: Core) -> None:
         self._run_start = core.start_time
         try:
+            self._timestep = core.parameters._root._parameters["Emissions"]._children["BC"]._info._timeframe.period_length
             for cp in core.parameters._root._parameters["Emissions"]._children.values():
                 self._set_drivers_from_child_para(core, cp)
         except KeyError:
-            raise NotImplementedError("Not ready for non-emissions runs yet")
+            raise NotImplementedError("Not ready for non-RCP emissions runs yet")
 
     def _set_drivers_from_child_para(self, core: Core, parameter: _Parameter):
         if parameter._children:
@@ -226,8 +228,8 @@ class FAIR(Adapter):
 
         results = Core(
             "PH99",
-            self._drivers["emissions"][0, 0],
-            self._drivers["emissions"][-1, 0]
+            self._run_start,
+            12  # I don't think this is used anywhere
         )
 
         results.period_length = self._timestep
@@ -277,14 +279,32 @@ class FAIR(Adapter):
                 # in handy, although it may be slow...
                 signature = inspect.signature(self.model)
                 # this will explode when we start including array parameters...
-                value = signature.parameters[name].default
+                if name in ("ecs", "tcr"):
+                    tcrecs_def = signature.parameters["tcrecs"].default
+                    if name == "ecs":
+                        value = tcrecs_def[1]
+                    else:
+                        value = tcrecs_def[1]
+                else:
+                    value = signature.parameters[name].default
+
             results.parameters.get_writable_scalar_view(
                 (name,), ("World"), info["unit"]
             ).set(value)
 
-        results.parameters.get_writable_scalar_view(
-            ("rf2xco2",), ("World"), "W / m^2"
-        ).set(self._config["F2x"])
+        for openscm_name, fair_name in _map.items():
+            try:
+                value = self._config[fair_name]
+            except KeyError:
+                # this is where Sven's retrieval of default parameters idea comes
+                # in handy, although it may be slow...
+                signature = inspect.signature(self.model)
+                # this will explode when we start including array parameters...
+                value = signature.parameters[fair_name].default
+
+            results.parameters.get_writable_scalar_view(
+                (openscm_name,), ("World"), "W / m^2"
+            ).set(value)
 
         return results
 
