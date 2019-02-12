@@ -349,11 +349,6 @@ class TimeseriesView(ParameterView):
 
     def get_times(self) -> float:
         """Get the time axis of the timeseries.
-
-        Parameters
-        ----------
-        year
-            Year to get data for
         """
         if self.is_empty:
             if not self._parameter._children:
