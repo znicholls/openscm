@@ -1,4 +1,5 @@
 from os.path import join
+import copy
 
 
 import numpy as np
@@ -14,13 +15,15 @@ from ..utils import round_to_nearest_year
 
 
 # how to do this intelligently and scalably?
-_mapping = {"ecs": "core_climatesensitivity", "rf2xco2": "core_delq2xco2"}
-openscm_para_magicc_mapping = {}
-for k, v in _mapping.items():
-    openscm_para_magicc_mapping[k] = v
-    openscm_para_magicc_mapping[v] = k
+_map = {
+    "ecs": "core_climatesensitivity",
+    "rf2xco2": "core_delq2xco2",
+}
+_openscm_para_magicc_mapping = copy.deepcopy(_map)
+for k, v in _map.items():
+    _openscm_para_magicc_mapping[v] = k
 
-parameters_magicc = {
+_parameters_magicc = {
     "core_climatesensitivity": {"type": ParameterType.SCALAR, "unit": "kelvin"},
     "core_delq2xco2": {"type": ParameterType.SCALAR, "unit": "W / m^2"},
     "co2_tempfeedback_switch": {"type": ParameterType.BOOLEAN},
@@ -65,7 +68,7 @@ class MAGICC6(Adapter):
                 n, v = self._get_config_dict_name_value(parameters, pname, pval)
                 config_dict[n] = v
             except KeyError:
-                msg = "{} is not a MAGICC6 parameter".format(pname)
+                msg = "{} is not a {} parameter".format(pname, self.name)
                 raise NotAnScmParameterError(msg)
 
         self.magicc.set_config(**config_dict)
@@ -74,19 +77,19 @@ class MAGICC6(Adapter):
         # TODO: add better region handling for parameters
         # In MAGICC they're all World so doesn't matter yet (arrays are the
         # regional parameters kind of...)
-        if pname in parameters_magicc:
+        if pname in _parameters_magicc:
             magicc_name = pname
         else:
-            magicc_name = openscm_para_magicc_mapping[pname]
+            magicc_name = _openscm_para_magicc_mapping[pname]
 
         if pval.info._type == ParameterType.SCALAR:
             pview = parameters.get_scalar_view(
-                pname, (pval.info.region), parameters_magicc[magicc_name]["unit"]
+                pname, (pval.info.region), _parameters_magicc[magicc_name]["unit"]
             )
             return magicc_name, pview.get()
         elif pval.info._type == ParameterType.ARRAY:
             pview = parameters.get_array_view(
-                pname, (pval.info.region), parameters_magicc[magicc_name]["unit"]
+                pname, (pval.info.region), _parameters_magicc[magicc_name]["unit"]
             )
             return magicc_name, list(pview.get())
         elif pval.info._type == ParameterType.BOOLEAN:
@@ -104,39 +107,39 @@ class MAGICC6(Adapter):
         results = convert_scmdataframe_to_core(res, climate_model=self.name)
         for k, v in res.metadata["parameters"]["allcfgs"].items():
             try:
-                if parameters_magicc[k]["type"] == ParameterType.SCALAR:
+                if _parameters_magicc[k]["type"] == ParameterType.SCALAR:
                     set_val = v
                     pview = results.parameters.get_writable_scalar_view(
-                        k, ("World",), parameters_magicc[k]["unit"]
+                        k, ("World",), _parameters_magicc[k]["unit"]
                     )
                     pview.set(set_val)
-                    if k in openscm_para_magicc_mapping:
+                    if k in _openscm_para_magicc_mapping:
                         other_view = results.parameters.get_writable_scalar_view(
-                            openscm_para_magicc_mapping[k],
+                            _openscm_para_magicc_mapping[k],
                             ("World",),
-                            parameters_magicc[k]["unit"],
+                            _parameters_magicc[k]["unit"],
                         )
                         other_view.set(set_val)
-                elif parameters_magicc[k]["type"] == ParameterType.ARRAY:
+                elif _parameters_magicc[k]["type"] == ParameterType.ARRAY:
                     set_val = np.array(v)
                     pview = results.parameters.get_writable_array_view(
-                        k, ("World",), parameters_magicc[k]["unit"]
+                        k, ("World",), _parameters_magicc[k]["unit"]
                     )
                     pview.set(set_val)
-                    if k in openscm_para_magicc_mapping:
+                    if k in _openscm_para_magicc_mapping:
                         other_view = results.parameters.get_writable_array_view(
-                            openscm_para_magicc_mapping[k],
+                            _openscm_para_magicc_mapping[k],
                             ("World",),
-                            parameters_magicc[k]["unit"],
+                            _parameters_magicc[k]["unit"],
                         )
                         other_view.set(set_val)
-                elif parameters_magicc[k]["type"] == ParameterType.BOOLEAN:
+                elif _parameters_magicc[k]["type"] == ParameterType.BOOLEAN:
                     set_val = bool(v)
                     pview = results.parameters.get_writable_boolean_view(k, ("World",))
                     pview.set(set_val)
-                    if k in openscm_para_magicc_mapping:
+                    if k in _openscm_para_magicc_mapping:
                         other_view = results.parameters.get_writable_boolean_view(
-                            openscm_para_magicc_mapping[k], ("World",)
+                            _openscm_para_magicc_mapping[k], ("World",)
                         )
                         other_view.set(set_val)
                 else:

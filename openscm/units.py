@@ -124,7 +124,7 @@ _gases = {
     "NOx": "NOx",
     "nox": ["NOx"],
     "NH3": ["14/17 * N", "ammonia"],
-    "S": ["sulfur"],
+    "S": "sulfur",
     "SO2": ["32/64 * S", "sulfur_dioxide"],
     "SOx": ["SO2"],
     "VOC": "VOC",

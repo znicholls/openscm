@@ -59,9 +59,9 @@ class PH99(Adapter):
     def set_config(self, parameters: ParameterSet) -> None:
         super().set_config(parameters)
         for key, value in parameters._root._parameters.items():
-            self.set_model_parameter(key, value)
+            self._set_model_parameter(key, value)
 
-    def set_model_parameter(self, para_name, value):
+    def _set_model_parameter(self, para_name, value):
         try:
             modval = value._data * unit_registry(value.info.unit)
             setattr(
@@ -86,7 +86,7 @@ class PH99(Adapter):
                     self.model.alpha = alpha_val.to(self.model.alpha.units)
                 return
 
-            raise NotAnScmParameterError("{} is not a PH99 parameter".format(para_name))
+            raise NotAnScmParameterError("{} is not a {} parameter".format(para_name, self.name))
 
     def run(self) -> None:
         self.model.initialise_timeseries()
