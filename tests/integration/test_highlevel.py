@@ -81,6 +81,10 @@ def test_init_ts(test_ts, test_pd_df):
     pd.testing.assert_frame_equal(df._data, b._data)
 
 
+def test_col_order(test_scm_df):
+    pd.testing.assert_index_equal(test_scm_df.meta.columns, pd.Index(['model', 'scenario', 'region', 'variable', 'unit', 'climate_model']))
+
+
 def test_init_ts_with_index(test_pd_df):
     df = ScmDataFrame(test_pd_df)
     tdf = get_test_pd_df_with_datetime_columns(test_pd_df)
@@ -611,6 +615,8 @@ def test_append(test_scm_df):
     # assert that appending data works as expected
     ts = df.timeseries().sort_index()
     npt.assert_array_equal(ts.iloc[2], ts.iloc[3])
+    pd.testing.assert_index_equal(df.meta.columns,
+                                  pd.Index(['model', 'scenario', 'region', 'variable', 'unit', 'climate_model', 'col1', 'col2']))
 
 
 def test_append_exact_duplicates(test_scm_df):
@@ -830,6 +836,8 @@ def test_set_meta_as_named_series(test_scm_df):
 
     obs = test_scm_df["meta_values"]
     pd.testing.assert_series_equal(obs, exp)
+    pd.testing.assert_index_equal(test_scm_df.meta.columns,
+                                  pd.Index(['model', 'scenario', 'region', 'variable', 'unit', 'climate_model', 'meta_values']))
 
 
 def test_set_meta_as_unnamed_series(test_scm_df):
@@ -847,6 +855,8 @@ def test_set_meta_as_unnamed_series(test_scm_df):
 
     obs = test_scm_df["meta_values"]
     pd.testing.assert_series_equal(obs, exp)
+    pd.testing.assert_index_equal(test_scm_df.meta.columns,
+                                  pd.Index(['model', 'scenario', 'region', 'variable', 'unit', 'climate_model', 'meta_values']))
 
 
 def test_set_meta_non_unique_index_fail(test_scm_df):
@@ -882,6 +892,8 @@ def test_set_meta_by_df(test_scm_df):
 
     obs = test_scm_df["meta_values"]
     pd.testing.assert_series_equal(obs, exp)
+    pd.testing.assert_index_equal(test_scm_df.meta.columns,
+                                  pd.Index(['model', 'scenario', 'region', 'variable', 'unit', 'climate_model', 'meta_values']))
 
 
 def test_set_meta_as_series(test_scm_df):
@@ -894,6 +906,8 @@ def test_set_meta_as_series(test_scm_df):
 
     obs = test_scm_df["meta_series"]
     pd.testing.assert_series_equal(obs, exp)
+    pd.testing.assert_index_equal(test_scm_df.meta.columns,
+                                  pd.Index(['model', 'scenario', 'region', 'variable', 'unit', 'climate_model', 'meta_series']))
 
 
 def test_set_meta_as_int(test_scm_df):
@@ -903,6 +917,8 @@ def test_set_meta_as_int(test_scm_df):
 
     obs = test_scm_df["meta_int"]
     pd.testing.assert_series_equal(obs, exp)
+    pd.testing.assert_index_equal(test_scm_df.meta.columns,
+                                  pd.Index(['model', 'scenario', 'region', 'variable', 'unit', 'climate_model', 'meta_int']))
 
 
 def test_set_meta_as_str(test_scm_df):
@@ -916,6 +932,8 @@ def test_set_meta_as_str(test_scm_df):
 
     obs = test_scm_df["meta_str"]
     pd.testing.assert_series_equal(obs, exp)
+    pd.testing.assert_index_equal(test_scm_df.meta.columns,
+                                  pd.Index(['model', 'scenario', 'region', 'variable', 'unit', 'climate_model', 'meta_str']))
 
 
 def test_set_meta_as_str_list(test_scm_df):
@@ -935,6 +953,8 @@ def test_set_meta_as_str_by_index(test_scm_df):
 
     obs = pd.Series(test_scm_df["meta_str"].values)
     pd.testing.assert_series_equal(obs, pd.Series(["foo", "foo", None]))
+    pd.testing.assert_index_equal(test_scm_df.meta.columns,
+                                  pd.Index(['model', 'scenario', 'region', 'variable', 'unit', 'climate_model', 'meta_str']))
 
 
 def test_filter_by_bool(test_scm_df):

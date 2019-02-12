@@ -289,6 +289,7 @@ class ScmDataFrameBase(object):
 
         self._data, self._meta = (_df, _meta)
         self._format_datetime_col()
+        self._sort_meta_cols()
 
     def copy(self):
         return copy.deepcopy(self)
@@ -607,6 +608,9 @@ class ScmDataFrameBase(object):
             .reset_index()
             .set_index("index")
         )
+        # Edge case of using a different index on meta
+        if 'level_0' in self._meta:
+            self._meta.drop('level_0', axis=1, inplace=True)
         self._sort_meta_cols()
 
     def line_plot(self, x="time", y="value", **kwargs):
