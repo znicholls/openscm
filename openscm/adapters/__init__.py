@@ -10,7 +10,7 @@ def get_adapter(model):
         # "MAGICC7": MAGICC7,
         "Hector": Hector,
         "PH99": PH99,
-        "FAIR": FAIR,
+        "FaIR": FAIR,
     }
 
     return model_classes[model]

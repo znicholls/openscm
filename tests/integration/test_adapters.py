@@ -284,8 +284,7 @@ class TestFAIRAdapter(_AdapterTester):
             return convert_datetime_to_openscm_time(datetime.datetime(yr, 1, 1))
 
         assert_core(
-            # 9.14781,
-            9.14773,  # difference is coming from datetime back and forth I think...
+            9.14781,
             get_comparison_time_for_year(2017),
             res,
             ("Emissions", "CO2", "MAGICC Fossil and Industrial"),
@@ -296,8 +295,29 @@ class TestFAIRAdapter(_AdapterTester):
         )
 
         assert_core(
+            1.5034108467585783,
+            get_comparison_time_for_year(2100),
+            res,
+            ("Surface Temperature"),
+            "World",
+            "K",
+            res.start_time,
+            ONE_YEAR_IN_S_INTEGER,
+        )
+
+    def test_rcp26_correct_config(self, test_adapter, test_drivers_core):
+        test_adapter.initialize()
+        test_adapter.set_drivers(test_drivers_core)
+        # hack
+        test_adapter._config = {}
+        res = test_adapter.run()
+
+        def get_comparison_time_for_year(yr):
+            return convert_datetime_to_openscm_time(datetime.datetime(yr, 1, 1))
+
+        assert_core(
             # 1.4478187936311477,  # taken from FaIR tests
-            1.503408,  # difference is coming from datetime back and forth I think...
+            1.461461675007854,  # guessing difference is due to datetime back and forth?
             get_comparison_time_for_year(2100),
             res,
             ("Surface Temperature"),

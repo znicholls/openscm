@@ -8,6 +8,7 @@ from .highlevel import (
     convert_scmdataframe_to_core,
     convert_core_to_scmdataframe,
     convert_config_dict_to_parameter_set,
+    df_append,
 )
 from .adapters import get_adapter
 from .constants import ONE_YEAR_IN_S_INTEGER
@@ -23,6 +24,7 @@ def run(drivers, model_configurations):
     assert isinstance(
         model_configurations, dict
     ), "model_configurations must be a dictionary"
+    results = []
     for climate_model, configurations in progressbar.progressbar(
         model_configurations.items()
     ):
@@ -46,9 +48,6 @@ def run(drivers, model_configurations):
                     scenario=scenario,
                     climate_model=climate_model,
                 )
-                try:
-                    results.append(config_results, inplace=True)
-                except NameError:
-                    results = config_results
+                results.append(config_results)
 
-    return results
+    return df_append(results)
