@@ -1,7 +1,10 @@
 from typing import Sequence
+
+
 from .parameters import _Parameter
 from .timeframes import Timeframe, TimeframeConverter
 from .units import UnitConverter
+from .errors import ParameterEmptyError
 
 
 class ParameterView:
@@ -36,6 +39,9 @@ class ScalarView(ParameterView):
     Read-only view of a scalar parameter.
     """
 
+    _child_data_views: Sequence["ScalarView"]
+    """List of views to the child parameters for aggregated reads"""
+
     _unit_converter: UnitConverter
     """Unit converter"""
 
@@ -50,13 +56,45 @@ class ScalarView(ParameterView):
         unit
             Unit for the values in the view
         """
+
+        def get_data_views_for_children_or_parameter(
+            parameter: _Parameter
+        ) -> Sequence["ScalarView"]:
+            if parameter._children:
+                return sum(
+                    (
+                        get_data_views_for_children_or_parameter(p)
+                        for p in parameter._children.values()
+                    ),
+                    [],
+                )
+            return [ScalarView(parameter, self._unit_converter._target)]
+
         super().__init__(parameter)
         self._unit_converter = UnitConverter(parameter._info._unit, unit)
+        if self._parameter._children:
+            self._child_data_views = get_data_views_for_children_or_parameter(
+                self._parameter
+            )
 
     def get(self) -> float:
         """
         Get current value of scalar parameter.
+
+        If the parameter has child parameters (i.e. ``_children`` is not empty),
+        the returned value will be the sum of the values of all of the child
+        parameters.
+
+        Raises
+        ------
+        ParameterEmptyError
+            Parameter is empty, i.e. has not yet been written to
         """
+        if self._parameter._children:
+            return sum(v.get() for v in self._child_data_views)
+        elif self.is_empty:
+            raise ParameterEmptyError
+
         return self._unit_converter.convert_from(self._parameter._data)
 
 
@@ -82,6 +120,9 @@ class TimeseriesView(ParameterView):
     Read-only :class:`ParameterView` of a timeseries.
     """
 
+    _child_data_views: Sequence["TimeseriesView"]
+    """List of views to the child parameters for aggregated reads"""
+
     _timeframe_converter: TimeframeConverter
     """Timeframe converter"""
 
@@ -101,16 +142,54 @@ class TimeseriesView(ParameterView):
         timeframe
             Timeframe
         """
+
+        def get_data_views_for_children_or_parameter(
+            parameter: _Parameter
+        ) -> Sequence["TimeseriesView"]:
+            if parameter._children:
+                return sum(
+                    (
+                        get_data_views_for_children_or_parameter(p)
+                        for p in parameter._children.values()
+                    ),
+                    [],
+                )
+            return [
+                TimeseriesView(
+                    parameter,
+                    self._unit_converter._target,
+                    self._timeframe_converter._target,
+                )
+            ]
+
         super().__init__(parameter)
         self._unit_converter = UnitConverter(parameter._info._unit, unit)
         self._timeframe_converter = TimeframeConverter(
             parameter._info._timeframe, timeframe
         )
+        if self._parameter._children:
+            self._child_data_views = get_data_views_for_children_or_parameter(
+                self._parameter
+            )
 
     def get_series(self) -> Sequence[float]:
         """
         Get values of the full timeseries.
+
+        If the parameter has child parameters (i.e. ``_children`` is not empty),
+        the returned value will be the sum of the values of all of the child
+        parameters.
+
+        Raises
+        ------
+        ParameterEmptyError
+            Parameter is empty, i.e. has not yet been written to
         """
+        if self._parameter._children:
+            return sum(v.get_series() for v in self._child_data_views)
+        elif self.is_empty:
+            raise ParameterEmptyError
+
         return self._timeframe_converter.convert_from(
             self._unit_converter.convert_from(self._parameter._data)
         )
@@ -118,6 +197,8 @@ class TimeseriesView(ParameterView):
     def get(self, index: int) -> float:
         """
         Get value at a particular time.
+
+        TODO implement
 
         Parameters
         ----------
@@ -160,6 +241,8 @@ class WritableTimeseriesView(TimeseriesView):
     def set(self, value: float, index: int) -> None:
         """
         Set value for a particular time in the time series.
+
+        TODO implement.
 
         Parameters
         ----------

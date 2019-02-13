@@ -17,6 +17,12 @@ class ParameterReadonlyError(ParameterError):
     """
 
 
+class ParameterEmptyError(ParameterError):
+    """
+    Exception raised when trying to read when a parameter's value hasn't been set
+    """
+
+
 class ParameterTypeError(ParameterError):
     """
     Exception raised when a parameter is of a different type than

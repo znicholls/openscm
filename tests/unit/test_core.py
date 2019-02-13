@@ -9,6 +9,7 @@ from openscm.errors import (
     ParameterReadError,
     ParameterReadonlyError,
     ParameterTypeError,
+    ParameterEmptyError,
     ParameterWrittenError,
     RegionAggregatedError,
 )
@@ -164,7 +165,8 @@ def test_parameterset_named_initialisation():
 def test_scalar_parameter_view(core):
     parameterset = core.parameters
     cs = parameterset.get_scalar_view(("Climate Sensitivity"), ("World",), "degC")
-    assert isnan(cs.get())
+    with pytest.raises(ParameterEmptyError):
+        cs.get()
     assert cs.is_empty
     cs_writable = parameterset.get_writable_scalar_view(
         ("Climate Sensitivity"), "World", "degF"
@@ -174,9 +176,52 @@ def test_scalar_parameter_view(core):
     assert not cs.is_empty
     np.testing.assert_allclose(cs.get(), 20)
     with pytest.raises(ParameterTypeError):
-        parameterset.get_timeseries_view(("Climate Sensitivity"), ("World",), "degC", 0, 1)
+        parameterset.get_timeseries_view(
+            ("Climate Sensitivity"), ("World",), "degC", 0, 1
+        )
     with pytest.raises(DimensionalityError):
         parameterset.get_scalar_view(("Climate Sensitivity"), ("World",), "kg")
+
+
+def test_scalar_parameter_view_aggregation(core, start_time):
+    ta_1 = 0.6
+    ta_2 = 0.3
+    tb = 0.1
+
+    parameterset = core.parameters
+
+    a_1_writable = parameterset.get_writable_scalar_view(
+        ("Top", "a", "1"), ("World"), "dimensionless"
+    )
+    a_1_writable.set(ta_1)
+
+    a_2_writable = parameterset.get_writable_scalar_view(
+        ("Top", "a", "2"), ("World"), "dimensionless"
+    )
+    a_2_writable.set(ta_2)
+
+    b_writable = parameterset.get_writable_scalar_view(
+        ("Top", "b"), ("World"), "dimensionless"
+    )
+    b_writable.set(tb)
+
+    a_1 = parameterset.get_scalar_view(("Top", "a", "1"), ("World"), "dimensionless")
+    np.testing.assert_allclose(a_1.get(), ta_1)
+
+    a_2 = parameterset.get_scalar_view(("Top", "a", "2"), ("World"), "dimensionless")
+    np.testing.assert_allclose(a_2.get(), ta_2)
+
+    a = parameterset.get_scalar_view(("Top", "a"), ("World"), "dimensionless")
+    np.testing.assert_allclose(a.get(), ta_1 + ta_2)
+
+    b = parameterset.get_scalar_view(("Top", "b"), ("World"), "dimensionless")
+    np.testing.assert_allclose(b.get(), tb)
+
+    with pytest.raises(ParameterReadonlyError):
+        parameterset.get_writable_scalar_view(("Top", "a"), ("World"), "dimensionless")
+
+    total = parameterset.get_scalar_view(("Top"), ("World"), "dimensionless")
+    np.testing.assert_allclose(total.get(), ta_1 + ta_2 + tb)
 
 
 @pytest.fixture(
@@ -194,6 +239,10 @@ def test_timeseries_parameter_view(core, start_time, series):
     carbon = parameterset.get_timeseries_view(
         ("Emissions", "CO2"), ("World"), "GtCO2/a", start_time, 365 * 24 * 3600
     )
+    assert carbon.is_empty
+    with pytest.raises(ParameterEmptyError):
+        carbon.get_series()
+
     carbon_writable = parameterset.get_writable_timeseries_view(
         ("Emissions", "CO2"), ("World"), "ktC/d", start_time, 24 * 3600
     )
@@ -208,3 +257,87 @@ def test_timeseries_parameter_view(core, start_time, series):
         parameterset.get_scalar_view(("Emissions", "CO2"), ("World",), "GtCO2/a")
     with pytest.raises(DimensionalityError):
         parameterset.get_timeseries_view(("Emissions", "CO2"), ("World",), "kg", 0, 1)
+
+
+def test_timeseries_parameter_view_aggregation(core, start_time):
+    fossil_industry_emms = np.array([0, 1, 2])
+    fossil_energy_emms = np.array([2, 1, 4])
+    land_emms = np.array([0.05, 0.1, 0.2])
+
+    parameterset = core.parameters
+
+    fossil_industry_writable = parameterset.get_writable_timeseries_view(
+        ("Emissions", "CO2", "Fossil", "Industry"),
+        ("World"),
+        "GtC/yr",
+        start_time,
+        24 * 3600,
+    )
+    fossil_industry_writable.set_series(fossil_industry_emms)
+
+    fossil_energy_writable = parameterset.get_writable_timeseries_view(
+        ("Emissions", "CO2", "Fossil", "Energy"),
+        ("World"),
+        "GtC/yr",
+        start_time,
+        24 * 3600,
+    )
+    fossil_energy_writable.set_series(fossil_energy_emms)
+
+    land_writable = parameterset.get_writable_timeseries_view(
+        ("Emissions", "CO2", "Land"), ("World"), "MtC/yr", start_time, 24 * 3600
+    )
+    land_writable.set_series(land_emms * 1000)
+
+    fossil_industry = parameterset.get_timeseries_view(
+        ("Emissions", "CO2", "Fossil", "Industry"),
+        ("World"),
+        "GtC/yr",
+        start_time,
+        24 * 3600,
+    )
+    np.testing.assert_allclose(fossil_industry.get_series(), fossil_industry_emms)
+
+    fossil_energy = parameterset.get_timeseries_view(
+        ("Emissions", "CO2", "Fossil", "Energy"),
+        ("World"),
+        "GtC/yr",
+        start_time,
+        24 * 3600,
+    )
+    np.testing.assert_allclose(fossil_energy.get_series(), fossil_energy_emms)
+
+    fossil = parameterset.get_timeseries_view(
+        ("Emissions", "CO2", "Fossil"), ("World"), "GtC/yr", start_time, 24 * 3600
+    )
+    np.testing.assert_allclose(
+        fossil.get_series(), fossil_industry_emms + fossil_energy_emms
+    )
+
+    # ensure that you can't write extra children once you've got a parent view, this
+    # avoids ever having the child views become out of date
+    with pytest.raises(ParameterReadError):
+        parameterset.get_writable_timeseries_view(
+            ("Emissions", "CO2", "Fossil", "Transport"),
+            ("World"),
+            "GtC/yr",
+            start_time,
+            24 * 3600,
+        )
+
+    land = parameterset.get_timeseries_view(
+        ("Emissions", "CO2", "Land"), ("World"), "GtC/yr", start_time, 24 * 3600
+    )
+    np.testing.assert_allclose(land.get_series(), land_emms)
+
+    with pytest.raises(ParameterReadonlyError):
+        parameterset.get_writable_timeseries_view(
+            ("Emissions", "CO2"), ("World"), "GtC/yr", start_time, 24 * 3600
+        )
+
+    total = parameterset.get_timeseries_view(
+        ("Emissions", "CO2"), ("World"), "GtC/yr", start_time, 24 * 3600
+    )
+    np.testing.assert_allclose(
+        total.get_series(), land_emms + fossil_energy_emms + fossil_industry_emms
+    )
