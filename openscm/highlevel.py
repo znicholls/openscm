@@ -211,8 +211,12 @@ def convert_core_to_scmdataframe(
 def convert_config_dict_to_parameter_set(config):
     assert isinstance(config, dict)
     parameters = ParameterSet()
-    for key, (region, value) in config.items():
-        view = parameters.get_writable_scalar_view(key, region, str(value.units))
-        view.set(value.magnitude)
+    for key, value in config.items():
+        if (isinstance(value, tuple)) and (len(value) == 2):  # hacky assumption
+            (region, value) = value
+            view = parameters.get_writable_scalar_view(key, region, str(value.units))
+            view.set(value.magnitude)
+        else:
+            parameters.get_writable_generic_view(key).set(value)
 
     return parameters

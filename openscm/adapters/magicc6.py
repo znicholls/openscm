@@ -36,6 +36,12 @@ class MAGICC6(Adapter):
         self._magicc_class = pymagicc.MAGICC6
         self.magicc = None
         self.name = "MAGICC{}".format(self._magicc_class.version)
+        self._run_kwargs = {
+            "only": [
+                "Emissions|CO2|MAGICC Fossil and Industrial",
+                "Surface Temperature"
+            ]
+        }
         super().__init__()
 
     def initialize(self, **kwargs) -> None:
@@ -68,6 +74,10 @@ class MAGICC6(Adapter):
                 n, v = self._get_config_dict_name_value(parameters, pname, pval)
                 config_dict[n] = v
             except KeyError:
+                # hack hack hack
+                if pname == "only":
+                    self._run_kwargs[pname] = pval._data
+                    continue
                 msg = "{} is not a {} parameter".format(pname, self.name)
                 raise NotAnScmParameterError(msg)
 
@@ -102,7 +112,7 @@ class MAGICC6(Adapter):
         res = self.magicc.run(
             startyear=1765,
             endyear=2500,
-            only=["Emissions|CO2|MAGICC Fossil and Industrial", "Surface Temperature"],
+            **self._run_kwargs,
         )  # hard code for now
         results = convert_scmdataframe_to_core(res, climate_model=self.name)
         for k, v in res.metadata["parameters"]["allcfgs"].items():
