@@ -275,6 +275,33 @@ def test_array_parameter_view(core):
         parameterset.get_array_view(("NH SH split"), "World", "kg")
 
 
+def test_array_generic_view(core):
+    parameterset = core.parameters
+    cs = parameterset.get_generic_view()
+
+    assert cs.is_empty
+    assert cs.get() is None
+
+    cs_writable = parameterset.get_writable_generic_view(
+        ("bippity boo",)
+    )
+    cs_writable.set([True, 1, "hi", False])
+
+    assert not cs.is_empty
+    assert (cs.get() == [True, 1, "hi", False]).all()
+
+    with pytest.raises(ParameterTypeError):
+        parameterset.get_timeseries_view(
+            ("bippity boo",), "World", "dimensionless", 0, 1
+        )
+    with pytest.raises(ParameterTypeError):
+        parameterset.get_scalar_view(("bippity boo",), "World", "dimensionless")
+    with pytest.raises(ParameterTypeError):
+        parameterset.get_boolean_view(("bippity boo",), "World")
+    with pytest.raises(ParameterTypeError):
+        parameterset.get_array_view(("bippity boo",), "World", "kg")
+
+
 @pytest.fixture(
     params=[
         # 365 * 44 / 12 / 1e-6 for conversion from ktC/d to GtCO2/a
