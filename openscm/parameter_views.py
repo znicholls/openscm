@@ -211,6 +211,52 @@ class WritableBooleanView(BooleanView):
         self._parameter._data = value
 
 
+class GenericView(ParameterView):
+    """
+    Read-only view of a generic parameter.
+    """
+
+    def __init__(self, parameter: _Parameter):
+        """
+        Initialize.
+
+        Parameters
+        ----------
+        parameter
+            Parameter
+        """
+        super().__init__(parameter)
+
+    def get(self):
+        """
+        Get current value of generic parameter.
+        """
+        return self._parameter._data
+
+    def _get_child_view(self, child_parameter: _Parameter) -> ParameterView:
+        return type(self)(child_parameter)
+
+    def _sum_child_data_views(self, child_data_views: list) -> float:
+        raise ValueError
+
+
+class WritableGenericView(GenericView):
+    """
+    View of a generic parameter whose value can be changed.
+    """
+
+    def set(self, value) -> None:
+        """
+        Set current value of generic parameter.
+
+        Parameters
+        ----------
+        value
+            Value
+        """
+        self._parameter._data = value
+
+
 class ArrayView(ParameterView):
     """
     Read-only view of an array parameter.

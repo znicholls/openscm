@@ -18,6 +18,8 @@ from .parameter_views import (
     WritableBooleanView,
     ArrayView,
     WritableArrayView,
+    GenericView,
+    WritableGenericView,
 )
 from .parameters import _Parameter, ParameterInfo, ParameterType
 from .regions import _Region
@@ -174,7 +176,7 @@ class ParameterSet:
         parameter.attempt_write(ParameterType.SCALAR, unit)
         return WritableScalarView(parameter, unit)
 
-    def get_boolean_view(self, name: Tuple[str], region: Tuple[str]) -> ScalarView:
+    def get_boolean_view(self, name: Tuple[str], region: Tuple[str]) -> BooleanView:
         """
         Get a read-only view to a boolean parameter.
 
@@ -202,7 +204,7 @@ class ParameterSet:
 
     def get_writable_boolean_view(
         self, name: Tuple[str], region: Tuple[str]
-    ) -> WritableScalarView:
+    ) -> WritableBooleanView:
         """
         Get a writable view to a boolean parameter.
 
@@ -230,9 +232,53 @@ class ParameterSet:
         parameter.attempt_write(ParameterType.BOOLEAN)
         return WritableBooleanView(parameter)
 
+    def get_generic_view(self, name: Tuple[str]) -> GenericView:
+        """
+        Get a read-only view to a generic parameter.
+
+        Parameters
+        ----------
+        name
+            :ref:`Hierarchical name <parameter-hierarchy>` of the parameter
+
+        Raises
+        ------
+        TypeError
+            Name not given
+        """
+        parameter = self._get_or_create_parameter(
+            name, self._root
+        )
+        parameter.attempt_read(ParameterType.GENERIC)
+        return GenericView(parameter)
+
+    def get_writable_generic_view(
+        self, name: Tuple[str]
+    ) -> WritableGenericView:
+        """
+        Get a writable view to a generic parameter.
+
+        Parameters
+        ----------
+        name
+            :ref:`Hierarchical name <parameter-hierarchy>` of the parameter
+
+        Raises
+        ------
+        ParameterReadonlyError
+            Parameter is read-only (e.g. because its parent has been written to)
+        ValueError
+            Name not given or invalid region
+        """
+        parameter = self._get_or_create_parameter(
+            name, self._root
+        )
+        parameter.attempt_write(ParameterType.GENERIC)
+        return WritableGenericView(parameter)
+
     def get_array_view(
         self, name: Tuple[str], region: Tuple[str], unit: str
-    ) -> ScalarView:
+    ) -> ArrayView:
         """
         Get a read-only view to an array parameter (i.e. a parameter that's an array).
 
@@ -265,7 +311,7 @@ class ParameterSet:
 
     def get_writable_array_view(
         self, name: Tuple[str], region: Tuple[str], unit: str
-    ) -> WritableScalarView:
+    ) -> WritableArrayView:
         """
         Get a writable view to an array parameter (i.e. a parameter that's an array).
 

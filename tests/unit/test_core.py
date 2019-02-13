@@ -277,7 +277,7 @@ def test_array_parameter_view(core):
 
 def test_array_generic_view(core):
     parameterset = core.parameters
-    cs = parameterset.get_generic_view()
+    cs = parameterset.get_generic_view(("bippity boo",))
 
     assert cs.is_empty
     assert cs.get() is None
@@ -288,7 +288,7 @@ def test_array_generic_view(core):
     cs_writable.set([True, 1, "hi", False])
 
     assert not cs.is_empty
-    assert (cs.get() == [True, 1, "hi", False]).all()
+    assert cs.get() == [True, 1, "hi", False]
 
     with pytest.raises(ParameterTypeError):
         parameterset.get_timeseries_view(

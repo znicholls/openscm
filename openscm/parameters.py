@@ -24,6 +24,10 @@ class ParameterType(Enum):
     TIMESERIES = 2
     BOOLEAN = 3
     ARRAY = 4
+    # when making PR, get rid of BOOLEAN and ARRAY. BOOLEAN -> GENERIC whilst ARRAY
+    # either goes to GENERIC or should be broken down into a series of SCALAR
+    # parameters
+    GENERIC = 5
 
 
 class ParameterInfo:
@@ -221,6 +225,8 @@ class _Parameter:
                 self._data = False
             elif parameter_type == ParameterType.ARRAY:
                 self._data = np.array([])
+            elif parameter_type == ParameterType.GENERIC:
+                self._data = None
             else:  # parameter_type == ParameterType.TIMESERIES
                 self._data = np.array([])
                 self._info._timeframe = copy(timeframe)
