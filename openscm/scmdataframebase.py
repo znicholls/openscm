@@ -49,6 +49,17 @@ def read_files(fnames, *args, **kwargs):
     return format_data(read_pandas(fnames, *args, **kwargs))
 
 
+def _is_floatlike(f):
+    if isinstance(f, (int, float)):
+        return True
+
+    try:
+        float(f)
+        return True
+    except (TypeError, ValueError):
+        return False
+
+
 def format_data(df):
     """Convert an imported dataframe and check all required columns"""
     if isinstance(df, pd.Series):
@@ -90,10 +101,7 @@ def format_data(df):
         cols = set(df.columns) - set(IAMC_IDX)
         time_cols, extra_cols = False, []
         for i in cols:
-            if isinstance(i, (int, float)):
-                # a time
-                time_cols = True
-            elif isinstance(i, datetime):
+            if _is_floatlike(i) or isinstance(i, datetime):
                 time_cols = True
             else:
                 try:
@@ -349,7 +357,7 @@ class ScmDataFrameBase(object):
             pass
         elif isinstance(time_srs.iloc[0], int):
             self["time"] = [datetime(y, 1, 1) for y in to_int(time_srs)]
-        elif isinstance(time_srs.iloc[0], float):
+        elif _is_floatlike(time_srs.iloc[0]):
 
             def convert_float_to_datetime(inp):
                 year = int(inp)
@@ -360,7 +368,7 @@ class ScmDataFrameBase(object):
                     * fractional_part
                 )
 
-            self["time"] = [convert_float_to_datetime(t) for t in time_srs]
+            self["time"] = [convert_float_to_datetime(t) for t in time_srs.astype('float')]
 
         elif isinstance(self._data.index[0], str):
 

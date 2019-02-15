@@ -53,7 +53,7 @@ def test_init_df_year_converted_to_datetime(test_pd_df):
 
 def get_test_pd_df_with_datetime_columns(tpdf):
     return tpdf.rename(
-        {2005: datetime.datetime(2005, 1, 1), 2010: datetime.datetime(2010, 1, 1)},
+        {2005.: datetime.datetime(2005, 1, 1), 2010.: datetime.datetime(2010, 1, 1)},
         axis="columns",
     )
 
@@ -79,6 +79,20 @@ def test_init_ts(test_ts, test_pd_df):
 
     pd.testing.assert_frame_equal(df.meta, b.meta, check_like=True)
     pd.testing.assert_frame_equal(df._data, b._data)
+
+
+@pytest.mark.parametrize('years', [['2005.0', '2010.0'], ['2005', '2010']])
+def test_init_with_years_as_str(test_pd_df, years):
+    df = copy.deepcopy(test_pd_df)  # This needs to be a deep copy so it doesn't break the other tests
+    cols = copy.deepcopy(test_pd_df.columns.values)
+    cols[-2:] = years
+    df.columns = cols
+
+    df = ScmDataFrame(df)
+
+    obs = df._data.index
+    exp = pd.Index([datetime.datetime(2005, 1, 1), datetime.datetime(2010, 1, 1)], name='time', dtype='object')
+    pd.testing.assert_index_equal(obs, exp)
 
 
 def test_col_order(test_scm_df):
