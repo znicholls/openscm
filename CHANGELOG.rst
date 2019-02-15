@@ -4,6 +4,7 @@ Changelog
 scmcallib
 ---------
 
+- (`#120 <https://github.com/openclimatedata/openscm/pull/120>`_) Attempt to cast str dates to float as a check for being able to be converted to datetimes
 - (`#112 <https://github.com/openclimatedata/openscm/pull/112>`_) Added demo of FaIR adapter
 - (`#88 <https://github.com/openclimatedata/openscm/pull/88>`_) Added demos of MAGICC and PH99 adapters
 - (`#103 <https://github.com/openclimatedata/openscm/pull/103>`_) Add resample method for `ScmDataFrame`
