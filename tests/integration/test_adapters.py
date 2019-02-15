@@ -8,7 +8,7 @@ import pytest
 import numpy as np
 
 
-from openscm.adapters import MAGICC6, Hector, PH99, FAIR
+from openscm.adapters import MAGICC6, Hector, PH99
 from openscm.core import ParameterSet
 from openscm.errors import ModelNotInitialisedError
 from openscm.scenarios import rcps
@@ -251,81 +251,81 @@ class TestPH99Adapter(_AdapterTester):
         )
 
 
-class TestFAIRAdapter(_AdapterTester):
-    tadapter = FAIR
-
-    def test_initialize(self, test_adapter):
-        assert test_adapter.model is None
-        super().test_initialize(test_adapter)
-        assert test_adapter.model is not None
-
-    def test_set_config(self, test_adapter, test_config_paraset):
-        super().test_set_config(test_adapter, test_config_paraset)
-
-        r0 = 37.3
-        test_config_paraset.get_writable_scalar_view("r0", ("World",), "yr").set(
-            r0
-        )
-
-        test_adapter.initialize()
-        test_adapter.set_config(test_config_paraset)
-
-        np.testing.assert_allclose(test_adapter._config["r0"], r0)
-
-    def test_run(self, test_adapter, test_config_paraset, test_drivers_core):
-        super().test_run(test_adapter, test_config_paraset, test_drivers_core)
-
-        test_adapter.initialize()
-        test_adapter.set_config(test_config_paraset)
-        test_adapter.set_drivers(test_drivers_core)
-        res = test_adapter.run()
-
-        def get_comparison_time_for_year(yr):
-            return convert_datetime_to_openscm_time(datetime.datetime(yr, 1, 1))
-
-        assert_core(
-            9.14781,
-            get_comparison_time_for_year(2017),
-            res,
-            ("Emissions", "CO2", "MAGICC Fossil and Industrial"),
-            "World",
-            "GtC / yr",
-            res.start_time,
-            ONE_YEAR_IN_S_INTEGER,
-        )
-
-        assert_core(
-            1.5034108467585783,
-            get_comparison_time_for_year(2100),
-            res,
-            ("Surface Temperature"),
-            "World",
-            "K",
-            res.start_time,
-            ONE_YEAR_IN_S_INTEGER,
-        )
-
-    def test_rcp26_correct_config(self, test_adapter, test_drivers_core):
-        test_adapter.initialize()
-        test_adapter.set_drivers(test_drivers_core)
-        # hack
-        test_adapter._config = {}
-        res = test_adapter.run()
-
-        def get_comparison_time_for_year(yr):
-            return convert_datetime_to_openscm_time(datetime.datetime(yr, 1, 1))
-
-        assert_core(
-            # 1.4478187936311477,  # taken from FaIR tests
-            1.461461675007854,  # guessing difference is due to datetime back and forth?
-            get_comparison_time_for_year(2100),
-            res,
-            ("Surface Temperature"),
-            "World",
-            "K",
-            res.start_time,
-            ONE_YEAR_IN_S_INTEGER,
-        )
+# class TestFAIRAdapter(_AdapterTester):
+#     tadapter = FAIR
+#
+#     def test_initialize(self, test_adapter):
+#         assert test_adapter.model is None
+#         super().test_initialize(test_adapter)
+#         assert test_adapter.model is not None
+#
+#     def test_set_config(self, test_adapter, test_config_paraset):
+#         super().test_set_config(test_adapter, test_config_paraset)
+#
+#         r0 = 37.3
+#         test_config_paraset.get_writable_scalar_view("r0", ("World",), "yr").set(
+#             r0
+#         )
+#
+#         test_adapter.initialize()
+#         test_adapter.set_config(test_config_paraset)
+#
+#         np.testing.assert_allclose(test_adapter._config["r0"], r0)
+#
+#     def test_run(self, test_adapter, test_config_paraset, test_drivers_core):
+#         super().test_run(test_adapter, test_config_paraset, test_drivers_core)
+#
+#         test_adapter.initialize()
+#         test_adapter.set_config(test_config_paraset)
+#         test_adapter.set_drivers(test_drivers_core)
+#         res = test_adapter.run()
+#
+#         def get_comparison_time_for_year(yr):
+#             return convert_datetime_to_openscm_time(datetime.datetime(yr, 1, 1))
+#
+#         assert_core(
+#             9.14781,
+#             get_comparison_time_for_year(2017),
+#             res,
+#             ("Emissions", "CO2", "MAGICC Fossil and Industrial"),
+#             "World",
+#             "GtC / yr",
+#             res.start_time,
+#             ONE_YEAR_IN_S_INTEGER,
+#         )
+#
+#         assert_core(
+#             1.5034108467585783,
+#             get_comparison_time_for_year(2100),
+#             res,
+#             ("Surface Temperature"),
+#             "World",
+#             "K",
+#             res.start_time,
+#             ONE_YEAR_IN_S_INTEGER,
+#         )
+#
+#     def test_rcp26_correct_config(self, test_adapter, test_drivers_core):
+#         test_adapter.initialize()
+#         test_adapter.set_drivers(test_drivers_core)
+#         # hack
+#         test_adapter._config = {}
+#         res = test_adapter.run()
+#
+#         def get_comparison_time_for_year(yr):
+#             return convert_datetime_to_openscm_time(datetime.datetime(yr, 1, 1))
+#
+#         assert_core(
+#             # 1.4478187936311477,  # taken from FaIR tests
+#             1.461461675007854,  # guessing difference is due to datetime back and forth?
+#             get_comparison_time_for_year(2100),
+#             res,
+#             ("Surface Temperature"),
+#             "World",
+#             "K",
+#             res.start_time,
+#             ONE_YEAR_IN_S_INTEGER,
+#         )
 
 
 class TestHectorAdapter(_AdapterTester):
