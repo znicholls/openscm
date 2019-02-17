@@ -827,6 +827,107 @@ class ScmDataFrameBase(object):
         x._resample_cls = get_resampler(self)
         return x.resample(time=rule, **kwargs)
 
+    def quantile_over(self, cols, quantile):
+        """
+        Take the quantile over the input columns.
+
+        Here the quantile means the value of the data at a given point in the
+        cumulative distribution of values at each point in the timeseries, for each
+        timeseries once the groupby is applied. As a result, using ``quantile=0.5`` is
+        is the same as taking the median and not the same as taking the mean/average.
+
+        Parameters
+        ----------
+        cols : str, list of str
+            Columns to take the quantile over. The timeseries will be grouped by all
+            other columns in ``self.meta``
+
+        quantile : float
+            The quantile to return. Must be between 0 and 1
+
+        Returns
+        -------
+        pd.DataFrame
+            The quantiles of the timeseries, grouped by all columns in ``self.meta``
+            other than ``cols``
+        """
+        cols = [cols] if isinstance(cols, str) else cols
+        ts = self.timeseries()
+        group_cols = list(set(ts.index.names) - set(cols))
+
+        return ts.groupby(group_cols).quantile(quantile)
+
+    def mean_over(self, cols):
+        """
+        Take the mean over the input columns.
+
+        Parameters
+        ----------
+        cols : str, list of str
+            Columns to take the quantile over. The timeseries will be grouped by all
+            other columns in ``self.meta``
+
+        Returns
+        -------
+        pd.DataFrame
+            The quantiles of the timeseries, grouped by all columns in ``self.meta``
+            other than ``cols``
+        """
+        cols = [cols] if isinstance(cols, str) else cols
+        ts = self.timeseries()
+        group_cols = list(set(ts.index.names) - set(cols))
+
+        return ts.groupby(group_cols).mean()
+
+    def median_over(self, cols):
+        """
+        Take the median over the input columns.
+
+        Parameters
+        ----------
+        cols : str, list of str
+            Columns to take the quantile over. The timeseries will be grouped by all
+            other columns in ``self.meta``
+
+        Returns
+        -------
+        pd.DataFrame
+            The quantiles of the timeseries, grouped by all columns in ``self.meta``
+            other than ``cols``
+        """
+        return self.quantile_over(cols, 0.5)
+
+    def relative_to_ref_period_mean(self, ref_period):
+        """
+        Return the timeseries relative to a given reference period mean
+
+        The reference period mean is subtracted from all values in the input
+        timeseries.
+
+        Parameters
+        ----------
+        ref_period : list-like of float
+            The time period to use when calculating the reference period mean.
+
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame containing the timeseries, adjusted to the reference period mean.
+        """
+        ts = self.timeseries()
+        times = ts.columns.tolist()
+        ref_period_times = [t for t in times if ref_period[0] <= t <= ref_period[1]]
+        ref_period_mean = ts[ref_period_times].mean(axis="columns")
+
+        res = ts.sub(ref_period_mean, axis="rows")
+
+        res.reset_index(inplace=True)
+        res["variable"] = res["variable"].apply(
+            lambda x: "{} ({} - {} ref. period)".format(x, ref_period[0], ref_period[1])
+        )
+
+        return res.set_index(ts.index.names)
+
 
 class LongIamDataFrame(IamDataFrame):
     """This baseclass is a custom implementation of the IamDataFrame which handles datetime data which spans longer than pd.to_datetime

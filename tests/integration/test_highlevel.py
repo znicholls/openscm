@@ -472,8 +472,8 @@ def test_quantile_over_lower(test_processing_scm_df):
     # e.g. 55th percentile?
     exp = pd.DataFrame(
         [
-            ["a_model", "a_iam", "World", "Primary Energy", "EJ/y", -1, -2, 3],
-            ["a_model", "a_iam", "World", "Primary Energy|Coal", "EJ/y", 0.5, 3, 2],
+            ["a_model", "a_iam", "World", "Primary Energy", "EJ/y", -1.0, -2.0, 0.0],
+            ["a_model", "a_iam", "World", "Primary Energy|Coal", "EJ/y", 0.5, 3.0, 2.0],
         ],
         columns=[
             "climate_model",
@@ -481,15 +481,13 @@ def test_quantile_over_lower(test_processing_scm_df):
             "region",
             "variable",
             "unit",
-            datetime.datetime(2005, 1, 1, 0, 0, 0),
-            datetime.datetime(2010, 1, 1, 0, 0, 0),
-            datetime.datetime(2015, 1, 1, 0, 0, 0),
+            datetime.datetime(2005, 1, 1),
+            datetime.datetime(2010, 1, 1),
+            datetime.datetime(2015, 1, 1),
         ],
     )
     obs = test_processing_scm_df.quantile_over("scenario", 0)
-    pd.testing.assert_frame_equal(
-        exp.reorder_levels(obs.index.names), obs, check_like=True
-    )
+    pd.testing.assert_frame_equal(exp.set_index(obs.index.names), obs, check_like=True)
 
 
 def test_quantile_over_upper(test_processing_scm_df):
@@ -498,24 +496,21 @@ def test_quantile_over_upper(test_processing_scm_df):
     # e.g. 55th percentile?
     exp = pd.DataFrame(
         [
-            ["a_model", "a_iam", "World", "Primary Energy", "EJ/y", 2, 7, 7],
-            ["a_model", "a_iam", "World", "Primary Energy|Coal", "EJ/y", 0.5, 3, 2],
+            ["a_model", "World", "Primary Energy", "EJ/y", 2.0, 7.0, 7.0],
+            ["a_model", "World", "Primary Energy|Coal", "EJ/y", 0.5, 3.0, 2.0],
         ],
         columns=[
             "climate_model",
-            "model",
             "region",
             "variable",
             "unit",
-            datetime.datetime(2005, 1, 1, 0, 0, 0),
-            datetime.datetime(2010, 1, 1, 0, 0, 0),
-            datetime.datetime(2015, 1, 1, 0, 0, 0),
+            datetime.datetime(2005, 1, 1),
+            datetime.datetime(2010, 1, 1),
+            datetime.datetime(2015, 1, 1),
         ],
     )
-    obs = test_processing_scm_df.quantile_over("scenario", 1)
-    pd.testing.assert_frame_equal(
-        exp.reorder_levels(obs.index.names), obs, check_like=True
-    )
+    obs = test_processing_scm_df.quantile_over(["model", "scenario"], 1)
+    pd.testing.assert_frame_equal(exp.set_index(obs.index.names), obs, check_like=True)
 
 
 def test_mean_over(test_processing_scm_df):
@@ -534,7 +529,7 @@ def test_mean_over(test_processing_scm_df):
                 11 / 3,
                 10 / 3,
             ],
-            ["a_model", "a_iam", "World", "Primary Energy|Coal", "EJ/y", 0.5, 3, 2],
+            ["a_model", "a_iam", "World", "Primary Energy|Coal", "EJ/y", 0.5, 3.0, 2.0],
         ],
         columns=[
             "climate_model",
@@ -542,15 +537,13 @@ def test_mean_over(test_processing_scm_df):
             "region",
             "variable",
             "unit",
-            datetime.datetime(2005, 1, 1, 0, 0, 0),
-            datetime.datetime(2010, 1, 1, 0, 0, 0),
-            datetime.datetime(2015, 1, 1, 0, 0, 0),
+            datetime.datetime(2005, 1, 1),
+            datetime.datetime(2010, 1, 1),
+            datetime.datetime(2015, 1, 1),
         ],
     )
     obs = test_processing_scm_df.mean_over("scenario")
-    pd.testing.assert_frame_equal(
-        exp.reorder_levels(obs.index.names), obs, check_like=True
-    )
+    pd.testing.assert_frame_equal(exp.set_index(obs.index.names), obs, check_like=True)
 
 
 def test_median_over(test_processing_scm_df):
@@ -559,8 +552,8 @@ def test_median_over(test_processing_scm_df):
     # e.g. 55th percentile?
     exp = pd.DataFrame(
         [
-            ["a_model", "a_iam", "World", "Primary Energy", "EJ/y", 1, 6, 3],
-            ["a_model", "a_iam", "World", "Primary Energy|Coal", "EJ/y", 0.5, 3, 2],
+            ["a_model", "a_iam", "World", "Primary Energy", "EJ/y", 1.0, 6.0, 3.0],
+            ["a_model", "a_iam", "World", "Primary Energy|Coal", "EJ/y", 0.5, 3.0, 2.0],
         ],
         columns=[
             "climate_model",
@@ -568,15 +561,13 @@ def test_median_over(test_processing_scm_df):
             "region",
             "variable",
             "unit",
-            datetime.datetime(2005, 1, 1, 0, 0, 0),
-            datetime.datetime(2010, 1, 1, 0, 0, 0),
-            datetime.datetime(2015, 1, 1, 0, 0, 0),
+            datetime.datetime(2005, 1, 1),
+            datetime.datetime(2010, 1, 1),
+            datetime.datetime(2015, 1, 1),
         ],
     )
     obs = test_processing_scm_df.median_over("scenario")
-    pd.testing.assert_frame_equal(
-        exp.reorder_levels(obs.index.names), obs, check_like=True
-    )
+    pd.testing.assert_frame_equal(exp.set_index(obs.index.names), obs, check_like=True)
 
 
 def test_relative_to_ref_period_mean(test_processing_scm_df):
@@ -590,7 +581,7 @@ def test_relative_to_ref_period_mean(test_processing_scm_df):
                 "a_iam",
                 "a_scenario",
                 "World",
-                "Primary Energy (2005-2010 ref. period)",
+                "Primary Energy (2005-01-01 00:00:00 - 2010-01-01 00:00:00 ref. period)",
                 "EJ/y",
                 -2.5,
                 2.5,
@@ -601,7 +592,7 @@ def test_relative_to_ref_period_mean(test_processing_scm_df):
                 "a_iam",
                 "a_scenario",
                 "World",
-                "Primary Energy|Coal (2005-2010 ref. period)",
+                "Primary Energy|Coal (2005-01-01 00:00:00 - 2010-01-01 00:00:00 ref. period)",
                 "EJ/y",
                 -1.25,
                 1.25,
@@ -612,7 +603,7 @@ def test_relative_to_ref_period_mean(test_processing_scm_df):
                 "a_iam",
                 "a_scenario2",
                 "World",
-                "Primary Energy|Coal (2005-2010 ref. period)",
+                "Primary Energy (2005-01-01 00:00:00 - 2010-01-01 00:00:00 ref. period)",
                 "EJ/y",
                 -2.5,
                 2.5,
@@ -623,7 +614,7 @@ def test_relative_to_ref_period_mean(test_processing_scm_df):
                 "a_iam",
                 "a_scenario3",
                 "World",
-                "Primary Energy|Coal (2005-2010 ref. period)",
+                "Primary Energy (2005-01-01 00:00:00 - 2010-01-01 00:00:00 ref. period)",
                 "EJ/y",
                 0.5,
                 -0.5,
@@ -637,18 +628,16 @@ def test_relative_to_ref_period_mean(test_processing_scm_df):
             "region",
             "variable",
             "unit",
-            datetime.datetime(2005, 1, 1, 0, 0, 0),
-            datetime.datetime(2010, 1, 1, 0, 0, 0),
-            datetime.datetime(2015, 1, 1, 0, 0, 0),
+            datetime.datetime(2005, 1, 1),
+            datetime.datetime(2010, 1, 1),
+            datetime.datetime(2015, 1, 1),
         ],
     )
     # what to do if ref period does not line up with provided data?
     obs = test_processing_scm_df.relative_to_ref_period_mean(
         (datetime.datetime(2005, 1, 1, 0, 0, 0), datetime.datetime(2010, 1, 1, 0, 0, 0))
     )
-    pd.testing.assert_frame_equal(
-        exp.reorder_levels(obs.index.names), obs, check_like=True
-    )
+    pd.testing.assert_frame_equal(exp.set_index(obs.index.names), obs, check_like=True)
 
 
 @pytest.mark.skip
