@@ -386,17 +386,13 @@ def test_filter_time_no_match(test_scm_datetime_df):
 
 
 def test_filter_time_not_datetime_error(test_scm_datetime_df):
-    error_msg = re.escape(
-        "`time` can only be filtered by datetimes"
-    )
+    error_msg = re.escape("`time` can only be filtered by datetimes")
     with pytest.raises(TypeError, match=error_msg):
         test_scm_datetime_df.filter(time=2005)
 
 
 def test_filter_time_not_datetime_range_error(test_scm_datetime_df):
-    error_msg = re.escape(
-        "`time` can only be filtered by datetimes"
-    )
+    error_msg = re.escape("`time` can only be filtered by datetimes")
     with pytest.raises(TypeError, match=error_msg):
         test_scm_datetime_df.filter(time=range(2000, 2008))
 
@@ -468,6 +464,191 @@ def test_timeseries_meta(test_scm_df):
 
 def test_timeseries_duplicated(test_scm_df):
     pytest.raises(ValueError, test_scm_df.timeseries, meta=["scenario"])
+
+
+def test_quantile_over_lower(test_processing_scm_df):
+    # not sure how this should work in place, in particular what do you fill
+    # the column which has been 'quantiled over' with? The value of the quantile
+    # e.g. 55th percentile?
+    exp = pd.DataFrame(
+        [
+            ["a_model", "a_iam", "World", "Primary Energy", "EJ/y", -1, -2, 3],
+            ["a_model", "a_iam", "World", "Primary Energy|Coal", "EJ/y", 0.5, 3, 2],
+        ],
+        columns=[
+            "climate_model",
+            "model",
+            "region",
+            "variable",
+            "unit",
+            datetime.datetime(2005, 1, 1, 0, 0, 0),
+            datetime.datetime(2010, 1, 1, 0, 0, 0),
+            datetime.datetime(2015, 1, 1, 0, 0, 0),
+        ],
+    )
+    obs = test_processing_scm_df.quantile_over("scenario", 0)
+    pd.testing.assert_frame_equal(
+        exp.reorder_levels(obs.index.names), obs, check_like=True
+    )
+
+
+def test_quantile_over_upper(test_processing_scm_df):
+    # not sure how this should work in place, in particular what do you fill
+    # the column which has been 'quantiled over' with? The value of the quantile
+    # e.g. 55th percentile?
+    exp = pd.DataFrame(
+        [
+            ["a_model", "a_iam", "World", "Primary Energy", "EJ/y", 2, 7, 7],
+            ["a_model", "a_iam", "World", "Primary Energy|Coal", "EJ/y", 0.5, 3, 2],
+        ],
+        columns=[
+            "climate_model",
+            "model",
+            "region",
+            "variable",
+            "unit",
+            datetime.datetime(2005, 1, 1, 0, 0, 0),
+            datetime.datetime(2010, 1, 1, 0, 0, 0),
+            datetime.datetime(2015, 1, 1, 0, 0, 0),
+        ],
+    )
+    obs = test_processing_scm_df.quantile_over("scenario", 1)
+    pd.testing.assert_frame_equal(
+        exp.reorder_levels(obs.index.names), obs, check_like=True
+    )
+
+
+def test_mean_over(test_processing_scm_df):
+    # not sure how this should work in place, in particular what do you fill
+    # the column which has been 'quantiled over' with? The value of the quantile
+    # e.g. 55th percentile?
+    exp = pd.DataFrame(
+        [
+            [
+                "a_model",
+                "a_iam",
+                "World",
+                "Primary Energy",
+                "EJ/y",
+                2 / 3,
+                11 / 3,
+                10 / 3,
+            ],
+            ["a_model", "a_iam", "World", "Primary Energy|Coal", "EJ/y", 0.5, 3, 2],
+        ],
+        columns=[
+            "climate_model",
+            "model",
+            "region",
+            "variable",
+            "unit",
+            datetime.datetime(2005, 1, 1, 0, 0, 0),
+            datetime.datetime(2010, 1, 1, 0, 0, 0),
+            datetime.datetime(2015, 1, 1, 0, 0, 0),
+        ],
+    )
+    obs = test_processing_scm_df.mean_over("scenario")
+    pd.testing.assert_frame_equal(
+        exp.reorder_levels(obs.index.names), obs, check_like=True
+    )
+
+
+def test_median_over(test_processing_scm_df):
+    # not sure how this should work in place, in particular what do you fill
+    # the column which has been 'quantiled over' with? The value of the quantile
+    # e.g. 55th percentile?
+    exp = pd.DataFrame(
+        [
+            ["a_model", "a_iam", "World", "Primary Energy", "EJ/y", 1, 6, 3],
+            ["a_model", "a_iam", "World", "Primary Energy|Coal", "EJ/y", 0.5, 3, 2],
+        ],
+        columns=[
+            "climate_model",
+            "model",
+            "region",
+            "variable",
+            "unit",
+            datetime.datetime(2005, 1, 1, 0, 0, 0),
+            datetime.datetime(2010, 1, 1, 0, 0, 0),
+            datetime.datetime(2015, 1, 1, 0, 0, 0),
+        ],
+    )
+    obs = test_processing_scm_df.median_over("scenario")
+    pd.testing.assert_frame_equal(
+        exp.reorder_levels(obs.index.names), obs, check_like=True
+    )
+
+
+def test_relative_to_ref_period_mean(test_processing_scm_df):
+    # not sure how this should work in place, in particular what do you fill
+    # the column that is now relative to with? A first implementation is here
+    # but it might not be the most sensible.
+    exp = pd.DataFrame(
+        [
+            [
+                "a_model",
+                "a_iam",
+                "a_scenario",
+                "World",
+                "Primary Energy (2005-2010 ref. period)",
+                "EJ/y",
+                -2.5,
+                2.5,
+                3.5,
+            ],
+            [
+                "a_model",
+                "a_iam",
+                "a_scenario",
+                "World",
+                "Primary Energy|Coal (2005-2010 ref. period)",
+                "EJ/y",
+                -1.25,
+                1.25,
+                0.25,
+            ],
+            [
+                "a_model",
+                "a_iam",
+                "a_scenario2",
+                "World",
+                "Primary Energy|Coal (2005-2010 ref. period)",
+                "EJ/y",
+                -2.5,
+                2.5,
+                -4.5,
+            ],
+            [
+                "a_model",
+                "a_iam",
+                "a_scenario3",
+                "World",
+                "Primary Energy|Coal (2005-2010 ref. period)",
+                "EJ/y",
+                0.5,
+                -0.5,
+                4.5,
+            ],
+        ],
+        columns=[
+            "climate_model",
+            "model",
+            "scenario",
+            "region",
+            "variable",
+            "unit",
+            datetime.datetime(2005, 1, 1, 0, 0, 0),
+            datetime.datetime(2010, 1, 1, 0, 0, 0),
+            datetime.datetime(2015, 1, 1, 0, 0, 0),
+        ],
+    )
+    # what to do if ref period does not line up with provided data?
+    obs = test_processing_scm_df.relative_to_ref_period_mean(
+        (datetime.datetime(2005, 1, 1, 0, 0, 0), datetime.datetime(2010, 1, 1, 0, 0, 0))
+    )
+    pd.testing.assert_frame_equal(
+        exp.reorder_levels(obs.index.names), obs, check_like=True
+    )
 
 
 @pytest.mark.skip

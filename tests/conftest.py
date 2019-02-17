@@ -123,6 +123,27 @@ def test_scm_df(request):
     yield ScmDataFrame(**request.param)
 
 
+@pytest.fixture(scope="function")
+def test_processing_scm_df():
+    yield ScmDataFrame(
+        data=np.array([[1, 6.0, 7], [0.5, 3, 2], [2, 7, 0], [-1, -2, 3]]).T,
+        columns={
+            "index": [2005, 2010, 2015],
+            "model": ["a_iam"],
+            "climate_model": ["a_model"],
+            "scenario": ["a_scenario", "a_scenario", "a_scenario2", "a_scenario3"],
+            "region": ["World"],
+            "variable": [
+                "Primary Energy",
+                "Primary Energy|Coal",
+                "Primary Energy",
+                "Primary Energy",
+            ],
+            "unit": ["EJ/y"],
+        },
+    )
+
+
 def test_adapter(request):
     return request.cls.tadapter()
 
