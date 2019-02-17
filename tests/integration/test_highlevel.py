@@ -387,7 +387,7 @@ def test_filter_time_no_match(test_scm_datetime_df):
 
 def test_filter_time_not_datetime_error(test_scm_datetime_df):
     error_msg = re.escape(
-        "`time` can only be filtered with datetimes or lists of datetimes"
+        "`time` can only be filtered by datetimes"
     )
     with pytest.raises(TypeError, match=error_msg):
         test_scm_datetime_df.filter(time=2005)
@@ -395,7 +395,7 @@ def test_filter_time_not_datetime_error(test_scm_datetime_df):
 
 def test_filter_time_not_datetime_range_error(test_scm_datetime_df):
     error_msg = re.escape(
-        "`time` can only be filtered with datetimes or lists of datetimes"
+        "`time` can only be filtered by datetimes"
     )
     with pytest.raises(TypeError, match=error_msg):
         test_scm_datetime_df.filter(time=range(2000, 2008))
