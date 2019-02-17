@@ -368,7 +368,9 @@ class ScmDataFrameBase(object):
                     * fractional_part
                 )
 
-            self["time"] = [convert_float_to_datetime(t) for t in time_srs.astype('float')]
+            self["time"] = [
+                convert_float_to_datetime(t) for t in time_srs.astype("float")
+            ]
 
         elif isinstance(self._data.index[0], str):
 
@@ -617,8 +619,8 @@ class ScmDataFrameBase(object):
             .set_index("index")
         )
         # Edge case of using a different index on meta
-        if 'level_0' in self._meta:
-            self._meta.drop('level_0', axis=1, inplace=True)
+        if "level_0" in self._meta:
+            self._meta.drop("level_0", axis=1, inplace=True)
         self._sort_meta_cols()
 
     def line_plot(self, x="time", y="value", **kwargs):

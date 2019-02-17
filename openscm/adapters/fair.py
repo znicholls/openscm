@@ -15,108 +15,111 @@ from ..units import unit_registry
 from ..errors import NotAnScmParameterError
 from ..parameters import _Parameter, ParameterType
 from ..constants import ONE_YEAR_IN_S_INTEGER
-from ..utils import (
-    convert_openscm_time_to_datetime,
-    round_to_nearest_year
+from ..utils import convert_openscm_time_to_datetime, round_to_nearest_year
+
+
+_emissions_units_index_fair = OrderedDict(
+    {
+        ("time",): "yr",  # ignored for now, just for indexing
+        ("CO2", "MAGICC Fossil and Industrial"): "GtC / yr",
+        ("CO2", "MAGICC AFOLU"): "GtC / yr",
+        ("CH4",): "MtCH4 / yr",
+        ("N2O",): "MtN2ON / yr",
+        ("SOx",): "MtS / yr",
+        ("CO",): "MtCO / yr",
+        ("NMVOC",): "MtNMVOC / yr",
+        ("NOx",): "MtN / yr",
+        ("BC",): "MtBC / yr",
+        ("OC",): "MtOC / yr",
+        ("NH3",): "MtNH3 / yr",
+        ("CF4",): "MtCF4 / yr",
+        ("C2F6",): "MtC2F6 / yr",
+        ("C6F14",): "MtC6F14 / yr",
+        ("HFC23",): "ktHFC23 / yr",
+        ("HFC32",): "ktHFC32 / yr",
+        ("HFC4310",): "ktHFC4310 / yr",
+        ("HFC125",): "ktHFC125 / yr",
+        ("HFC134a",): "ktHFC134a / yr",
+        ("HFC143a",): "ktHFC143a / yr",
+        ("HFC227ea",): "ktHFC227ea / yr",
+        ("HFC245fa",): "ktHFC245fa / yr",
+        ("SF6",): "ktSF6 / yr",
+        ("CFC11",): "ktCFC11 / yr",
+        ("CFC12",): "ktCFC12 / yr",
+        ("CFC113",): "ktCFC113 / yr",
+        ("CFC114",): "ktCFC114 / yr",
+        ("CFC115",): "ktCFC115 / yr",
+        ("CCl4",): "ktCCl4 / yr",
+        ("CH3CCl3",): "ktCH3CCl3 / yr",
+        ("HCFC22",): "ktHCFC22 / yr",
+        ("HCFC141b",): "ktHCFC141b / yr",
+        ("HCFC142b",): "ktHCFC142b / yr",
+        ("Halon1211",): "ktHalon1211 / yr",
+        ("Halon1202",): "ktHalon1202 / yr",
+        ("Halon1301",): "ktHalon1301 / yr",
+        ("Halon2402",): "ktHalon2402 / yr",
+        ("CH3Br",): "ktCH3Br / yr",
+        ("CH3Cl",): "ktCH3Cl / yr",
+    }
 )
-
-
-_emissions_units_index_fair = OrderedDict({
-    ("time",): "yr",  # ignored for now, just for indexing
-    ("CO2", "MAGICC Fossil and Industrial"): "GtC / yr",
-    ("CO2", "MAGICC AFOLU"): "GtC / yr",
-    ("CH4",): "MtCH4 / yr",
-    ("N2O",): "MtN2ON / yr",
-    ("SOx",): "MtS / yr",
-    ("CO",): "MtCO / yr",
-    ("NMVOC",): "MtNMVOC / yr",
-    ("NOx",): "MtN / yr",
-    ("BC",): "MtBC / yr",
-    ("OC",): "MtOC / yr",
-    ("NH3",): "MtNH3 / yr",
-    ("CF4",): "MtCF4 / yr",
-    ("C2F6",): "MtC2F6 / yr",
-    ("C6F14",): "MtC6F14 / yr",
-    ("HFC23",): "ktHFC23 / yr",
-    ("HFC32",): "ktHFC32 / yr",
-    ("HFC4310",): "ktHFC4310 / yr",
-    ("HFC125",): "ktHFC125 / yr",
-    ("HFC134a",): "ktHFC134a / yr",
-    ("HFC143a",): "ktHFC143a / yr",
-    ("HFC227ea",): "ktHFC227ea / yr",
-    ("HFC245fa",): "ktHFC245fa / yr",
-    ("SF6",): "ktSF6 / yr",
-    ("CFC11",): "ktCFC11 / yr",
-    ("CFC12",): "ktCFC12 / yr",
-    ("CFC113",): "ktCFC113 / yr",
-    ("CFC114",): "ktCFC114 / yr",
-    ("CFC115",): "ktCFC115 / yr",
-    ("CCl4",): "ktCCl4 / yr",
-    ("CH3CCl3",): "ktCH3CCl3 / yr",
-    ("HCFC22",): "ktHCFC22 / yr",
-    ("HCFC141b",): "ktHCFC141b / yr",
-    ("HCFC142b",): "ktHCFC142b / yr",
-    ("Halon1211",): "ktHalon1211 / yr",
-    ("Halon1202",): "ktHalon1202 / yr",
-    ("Halon1301",): "ktHalon1301 / yr",
-    ("Halon2402",): "ktHalon2402 / yr",
-    ("CH3Br",): "ktCH3Br / yr",
-    ("CH3Cl",): "ktCH3Cl / yr",
-})
 for i, (k, v) in enumerate(_emissions_units_index_fair.items()):
     _emissions_units_index_fair[k] = {"unit": v, "index": i}
 
-_concentrations_units_index_fair = OrderedDict({
-    ("CO2",): "ppm",
-    ("CH4",): "ppb",
-    ("N2O",): "ppb",
-    ("CF4",): "ppt",
-    ("C2F6",): "ppt",
-    ("C6F14",): "ppt",
-    ("HFC23",): "ppt",
-    ("HFC32",): "ppt",
-    ("HFC4310",): "ppt",
-    ("HFC125",): "ppt",
-    ("HFC134a",): "ppt",
-    ("HFC143a",): "ppt",
-    ("HFC227ea",): "ppt",
-    ("HFC245fa",): "ppt",
-    ("SF6",): "ppt",
-    ("CFC11",): "ppt",
-    ("CFC12",): "ppt",
-    ("CFC113",): "ppt",
-    ("CFC114",): "ppt",
-    ("CFC115",): "ppt",
-    ("CCl4",): "ppt",
-    ("CH3CCl3",): "ppt",
-    ("HCFC22",): "ppt",
-    ("HCFC141b",): "ppt",
-    ("HCFC142b",): "ppt",
-    ("Halon1211",): "ppt",
-    ("Halon1202",): "ppt",
-    ("Halon1301",): "ppt",
-    ("Halon2402",): "ppt",
-    ("CH3Br",): "ppt",
-    ("CH3Cl",): "ppt",
-})
+_concentrations_units_index_fair = OrderedDict(
+    {
+        ("CO2",): "ppm",
+        ("CH4",): "ppb",
+        ("N2O",): "ppb",
+        ("CF4",): "ppt",
+        ("C2F6",): "ppt",
+        ("C6F14",): "ppt",
+        ("HFC23",): "ppt",
+        ("HFC32",): "ppt",
+        ("HFC4310",): "ppt",
+        ("HFC125",): "ppt",
+        ("HFC134a",): "ppt",
+        ("HFC143a",): "ppt",
+        ("HFC227ea",): "ppt",
+        ("HFC245fa",): "ppt",
+        ("SF6",): "ppt",
+        ("CFC11",): "ppt",
+        ("CFC12",): "ppt",
+        ("CFC113",): "ppt",
+        ("CFC114",): "ppt",
+        ("CFC115",): "ppt",
+        ("CCl4",): "ppt",
+        ("CH3CCl3",): "ppt",
+        ("HCFC22",): "ppt",
+        ("HCFC141b",): "ppt",
+        ("HCFC142b",): "ppt",
+        ("Halon1211",): "ppt",
+        ("Halon1202",): "ppt",
+        ("Halon1301",): "ppt",
+        ("Halon2402",): "ppt",
+        ("CH3Br",): "ppt",
+        ("CH3Cl",): "ppt",
+    }
+)
 for i, (k, v) in enumerate(_concentrations_units_index_fair.items()):
     _concentrations_units_index_fair[k] = {"unit": v, "index": i}
 
-_radiative_forcing_units_index_fair = OrderedDict({
-    ("CO2",): "W / m^2",
-    ("CH4",): "W / m^2",
-    ("N2O",): "W / m^2",
-    ("GHG (need a better name)",): "W / m^2",
-    ("O3|Tropospheric",): "W / m^2",
-    ("O3|Stratospheric",): "W / m^2",
-    ("Stratospheric Water Vapour from CH4 Oxidation",): "W / m^2",
-    ("Contrails",): "W / m^2",
-    ("Aerosols",): "W / m^2",
-    ("Black Carbon on Snow",): "W / m^2",
-    ("Land Use Change",): "W / m^2",
-    ("Volcanic",): "W / m^2",
-    ("Solar",): "W / m^2",
-})
+_radiative_forcing_units_index_fair = OrderedDict(
+    {
+        ("CO2",): "W / m^2",
+        ("CH4",): "W / m^2",
+        ("N2O",): "W / m^2",
+        ("GHG (need a better name)",): "W / m^2",
+        ("O3|Tropospheric",): "W / m^2",
+        ("O3|Stratospheric",): "W / m^2",
+        ("Stratospheric Water Vapour from CH4 Oxidation",): "W / m^2",
+        ("Contrails",): "W / m^2",
+        ("Aerosols",): "W / m^2",
+        ("Black Carbon on Snow",): "W / m^2",
+        ("Land Use Change",): "W / m^2",
+        ("Volcanic",): "W / m^2",
+        ("Solar",): "W / m^2",
+    }
+)
 for i, (k, v) in enumerate(_radiative_forcing_units_index_fair.items()):
     _radiative_forcing_units_index_fair[k] = {"unit": v, "index": i}
 
@@ -132,8 +135,10 @@ _parameters_fair = {
     "r0": {"type": ParameterType.SCALAR, "unit": "yrs"},
 }
 
+
 class FAIR(Adapter):
     """Adapter for FaIR, https://github.com/OMS-NetZero/FAIR"""
+
     def __init__(self):
         self.model = None
         self.name = "FaIR"
@@ -150,7 +155,11 @@ class FAIR(Adapter):
     def set_drivers(self, core: Core) -> None:
         self._run_start = core.start_time
         try:
-            self._timestep = core.parameters._root._parameters["Emissions"]._children["BC"]._info._timeframe.period_length
+            self._timestep = (
+                core.parameters._root._parameters["Emissions"]
+                ._children["BC"]
+                ._info._timeframe.period_length
+            )
             for cp in core.parameters._root._parameters["Emissions"]._children.values():
                 self._set_drivers_from_child_para(core, cp)
         except KeyError:
@@ -174,13 +183,18 @@ class FAIR(Adapter):
             # hack central
             times = pview.get_times()
             nt = len(times)
-            self._drivers = {"emissions": np.zeros((nt, len(_emissions_units_index_fair.keys())))}
-            self._drivers["emissions"][:, 0] = np.array([round_to_nearest_year(convert_openscm_time_to_datetime(int(t))).year for t in times])
-
+            self._drivers = {
+                "emissions": np.zeros((nt, len(_emissions_units_index_fair.keys())))
+            }
+            self._drivers["emissions"][:, 0] = np.array(
+                [
+                    round_to_nearest_year(convert_openscm_time_to_datetime(int(t))).year
+                    for t in times
+                ]
+            )
 
         self._drivers["emissions"][
-            :,
-            _emissions_units_index_fair[parameter.full_name[1:]]["index"]
+            :, _emissions_units_index_fair[parameter.full_name[1:]]["index"]
         ] = pview.get_series()
 
     def set_config(self, parameters: ParameterSet) -> None:
@@ -206,9 +220,9 @@ class FAIR(Adapter):
                     if "ecs" not in self._config:
                         signature = inspect.signature(self.model)
                         self._config["ecs"] = signature.parameters["tcrecs"].default[1]
-                self._config["tcrecs"] = np.array([
-                    self._config["tcr"], self._config["ecs"]
-                ])
+                self._config["tcrecs"] = np.array(
+                    [self._config["tcr"], self._config["ecs"]]
+                )
             else:
                 self._config[para_name] = magnitude
         except KeyError:
@@ -217,29 +231,23 @@ class FAIR(Adapter):
                 magnitude = modval.to(_parameters_fair[para_name]["unit"]).magnitude
                 self._config[para_name] = magnitude
             except KeyError:
-                raise NotAnScmParameterError("{} is not a {} parameter".format(para_name, self.name))
+                raise NotAnScmParameterError(
+                    "{} is not a {} parameter".format(para_name, self.name)
+                )
 
     def run(self) -> None:
-        config = {
-            k: v for k, v in self._config.items() if k not in ("ecs", "tcr")
-        }
+        config = {k: v for k, v in self._config.items() if k not in ("ecs", "tcr")}
 
         concs, forcing, temperature = fair_scm(**self._drivers, **config)
 
         results = Core(
-            "PH99",
-            self._run_start,
-            12  # I don't think this is used anywhere
+            "PH99", self._run_start, 12  # I don't think this is used anywhere
         )
 
         results.period_length = self._timestep
 
         results.parameters.get_writable_timeseries_view(
-            ("Surface Temperature",),
-            ("World",),
-            "K",
-            self._run_start,
-            self._timestep,
+            ("Surface Temperature",), ("World",), "K", self._run_start, self._timestep
         ).set_series(temperature)
 
         for name, info in _emissions_units_index_fair.items():

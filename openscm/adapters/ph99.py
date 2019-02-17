@@ -86,7 +86,9 @@ class PH99(Adapter):
                     self.model.alpha = alpha_val.to(self.model.alpha.units)
                 return
 
-            raise NotAnScmParameterError("{} is not a {} parameter".format(para_name, self.name))
+            raise NotAnScmParameterError(
+                "{} is not a {} parameter".format(para_name, self.name)
+            )
 
     def run(self) -> None:
         self.model.initialise_timeseries()

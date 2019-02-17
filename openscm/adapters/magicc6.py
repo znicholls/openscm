@@ -15,10 +15,7 @@ from ..utils import round_to_nearest_year
 
 
 # how to do this intelligently and scalably?
-_map = {
-    "ecs": "core_climatesensitivity",
-    "rf2xco2": "core_delq2xco2",
-}
+_map = {"ecs": "core_climatesensitivity", "rf2xco2": "core_delq2xco2"}
 _openscm_para_magicc_mapping = copy.deepcopy(_map)
 for k, v in _map.items():
     _openscm_para_magicc_mapping[v] = k
