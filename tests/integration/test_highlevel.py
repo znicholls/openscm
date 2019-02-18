@@ -570,24 +570,21 @@ def test_process_over_kwargs_error(test_scm_df):
         test_scm_df.process_over("scenario", "mean", junk=4)
 
 
-@pytest.mark.parametrize("tfilter,tappend_str,exp_append_str",[
-    (
-        {"time": [datetime.datetime(y, 1, 1, 0, 0, 0) for y in range(2005, 2011)]},
-        None,
-        "(ref. period time: 2005-01-01 00:00:00 - 2010-01-01 00:00:00)"
-    ),
-    (
-        {"month": [1, 2, 3]},
-        "(Jan - Mar)",
-        "(Jan - Mar)"
-    ),
-    (
-        {"day": [1, 2, 3]},
-        None,
-        "(ref. period day: 1 - 3)"
-    ),
-])
-def test_relative_to_ref_period_mean(test_processing_scm_df, tfilter, tappend_str, exp_append_str):
+@pytest.mark.parametrize(
+    "tfilter,tappend_str,exp_append_str",
+    [
+        (
+            {"time": [datetime.datetime(y, 1, 1, 0, 0, 0) for y in range(2005, 2011)]},
+            None,
+            "(ref. period time: 2005-01-01 00:00:00 - 2010-01-01 00:00:00)",
+        ),
+        ({"month": [1, 2, 3]}, "(Jan - Mar)", "(Jan - Mar)"),
+        ({"day": [1, 2, 3]}, None, "(ref. period day: 1 - 3)"),
+    ],
+)
+def test_relative_to_ref_period_mean(
+    test_processing_scm_df, tfilter, tappend_str, exp_append_str
+):
     exp = pd.DataFrame(
         [
             [
@@ -648,7 +645,9 @@ def test_relative_to_ref_period_mean(test_processing_scm_df, tfilter, tappend_st
         ],
     )
 
-    obs = test_processing_scm_df.relative_to_ref_period_mean(append_str=tappend_str, **tfilter)
+    obs = test_processing_scm_df.relative_to_ref_period_mean(
+        append_str=tappend_str, **tfilter
+    )
     pd.testing.assert_frame_equal(exp.set_index(obs.index.names), obs, check_like=True)
 
 
