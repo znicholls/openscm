@@ -4,7 +4,7 @@ Changelog
 scmcallib
 ---------
 
-- (`#122 <https://github.com/openclimatedata/openscm/pull/122>`_) Add processing functions ``mean_over``, ``median_over``, ``quantile_over`` and ``relative_to_ref_period_mean``
+- (`#122 <https://github.com/openclimatedata/openscm/pull/122>`_) Add processing functions ``process_over`` and ``relative_to_ref_period_mean``. Turn off MAGICC adapter tests.
 - (`#120 <https://github.com/openclimatedata/openscm/pull/120>`_) Attempt to cast str dates to float as a check for being able to be converted to datetimes
 - (`#112 <https://github.com/openclimatedata/openscm/pull/112>`_) Added demo of FaIR adapter
 - (`#88 <https://github.com/openclimatedata/openscm/pull/88>`_) Added demos of MAGICC and PH99 adapters
