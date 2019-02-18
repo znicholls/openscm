@@ -32,7 +32,7 @@ REQUIREMENTS_DEPLOY = ["setuptools>=38.6.0", "twine>=1.11.0", "wheel>=0.31.0"]
 
 MODELS_DEPENDENCIES = {
     "MAGICC": "pymagicc @ git+https://github.com/openclimatedata/pymagicc.git@master",
-    "FaIR": "fair",
+    # "FaIR": "fair",
 }
 REQUIREMENTS_MODELS = [r for r in MODELS_DEPENDENCIES.values()]
 
