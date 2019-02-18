@@ -7,6 +7,7 @@ import re
 import pytest
 import numpy as np
 import pandas as pd
+from pandas.errors import UnsupportedFunctionCall
 from numpy import testing as npt
 from pyam.core import (
     require_variable,
@@ -467,9 +468,6 @@ def test_timeseries_duplicated(test_scm_df):
 
 
 def test_quantile_over_lower(test_processing_scm_df):
-    # not sure how this should work in place, in particular what do you fill
-    # the column which has been 'quantiled over' with? The value of the quantile
-    # e.g. 55th percentile?
     exp = pd.DataFrame(
         [
             ["a_model", "a_iam", "World", "Primary Energy", "EJ/y", -1.0, -2.0, 0.0],
@@ -483,17 +481,14 @@ def test_quantile_over_lower(test_processing_scm_df):
             "unit",
             datetime.datetime(2005, 1, 1),
             datetime.datetime(2010, 1, 1),
-            datetime.datetime(2015, 1, 1),
+            datetime.datetime(2015, 6, 12),
         ],
     )
-    obs = test_processing_scm_df.quantile_over("scenario", 0)
+    obs = test_processing_scm_df.process_over("scenario", "quantile", q=0)
     pd.testing.assert_frame_equal(exp.set_index(obs.index.names), obs, check_like=True)
 
 
 def test_quantile_over_upper(test_processing_scm_df):
-    # not sure how this should work in place, in particular what do you fill
-    # the column which has been 'quantiled over' with? The value of the quantile
-    # e.g. 55th percentile?
     exp = pd.DataFrame(
         [
             ["a_model", "World", "Primary Energy", "EJ/y", 2.0, 7.0, 7.0],
@@ -506,17 +501,14 @@ def test_quantile_over_upper(test_processing_scm_df):
             "unit",
             datetime.datetime(2005, 1, 1),
             datetime.datetime(2010, 1, 1),
-            datetime.datetime(2015, 1, 1),
+            datetime.datetime(2015, 6, 12),
         ],
     )
-    obs = test_processing_scm_df.quantile_over(["model", "scenario"], 1)
+    obs = test_processing_scm_df.process_over(["model", "scenario"], "quantile", q=1)
     pd.testing.assert_frame_equal(exp.set_index(obs.index.names), obs, check_like=True)
 
 
 def test_mean_over(test_processing_scm_df):
-    # not sure how this should work in place, in particular what do you fill
-    # the column which has been 'quantiled over' with? The value of the quantile
-    # e.g. 55th percentile?
     exp = pd.DataFrame(
         [
             [
@@ -539,17 +531,14 @@ def test_mean_over(test_processing_scm_df):
             "unit",
             datetime.datetime(2005, 1, 1),
             datetime.datetime(2010, 1, 1),
-            datetime.datetime(2015, 1, 1),
+            datetime.datetime(2015, 6, 12),
         ],
     )
-    obs = test_processing_scm_df.mean_over("scenario")
+    obs = test_processing_scm_df.process_over("scenario", "mean")
     pd.testing.assert_frame_equal(exp.set_index(obs.index.names), obs, check_like=True)
 
 
 def test_median_over(test_processing_scm_df):
-    # not sure how this should work in place, in particular what do you fill
-    # the column which has been 'quantiled over' with? The value of the quantile
-    # e.g. 55th percentile?
     exp = pd.DataFrame(
         [
             ["a_model", "a_iam", "World", "Primary Energy", "EJ/y", 1.0, 6.0, 3.0],
@@ -563,17 +552,42 @@ def test_median_over(test_processing_scm_df):
             "unit",
             datetime.datetime(2005, 1, 1),
             datetime.datetime(2010, 1, 1),
-            datetime.datetime(2015, 1, 1),
+            datetime.datetime(2015, 6, 12),
         ],
     )
-    obs = test_processing_scm_df.median_over("scenario")
+    obs = test_processing_scm_df.process_over("scenario", "median")
     pd.testing.assert_frame_equal(exp.set_index(obs.index.names), obs, check_like=True)
 
 
-def test_relative_to_ref_period_mean(test_processing_scm_df):
-    # not sure how this should work in place, in particular what do you fill
-    # the column that is now relative to with? A first implementation is here
-    # but it might not be the most sensible.
+def test_process_over_unrecognised_operation_error(test_scm_df):
+    error_msg = re.escape("operation must be on of ['median', 'mean', 'quantile']")
+    with pytest.raises(ValueError, match=error_msg):
+        test_scm_df.process_over("scenario", "junk")
+
+
+def test_process_over_kwargs_error(test_scm_df):
+    with pytest.raises(UnsupportedFunctionCall):
+        test_scm_df.process_over("scenario", "mean", junk=4)
+
+
+@pytest.mark.parametrize("tfilter,tappend_str,exp_append_str",[
+    (
+        {"time": [datetime.datetime(y, 1, 1, 0, 0, 0) for y in range(2005, 2011)]},
+        None,
+        "(ref. period time: 2005-01-01 00:00:00 - 2010-01-01 00:00:00)"
+    ),
+    (
+        {"month": [1, 2, 3]},
+        "(Jan - Mar)",
+        "(Jan - Mar)"
+    ),
+    (
+        {"day": [1, 2, 3]},
+        None,
+        "(ref. period day: 1 - 3)"
+    ),
+])
+def test_relative_to_ref_period_mean(test_processing_scm_df, tfilter, tappend_str, exp_append_str):
     exp = pd.DataFrame(
         [
             [
@@ -581,7 +595,7 @@ def test_relative_to_ref_period_mean(test_processing_scm_df):
                 "a_iam",
                 "a_scenario",
                 "World",
-                "Primary Energy (2005-01-01 00:00:00 - 2010-01-01 00:00:00 ref. period)",
+                "Primary Energy {}".format(exp_append_str),
                 "EJ/y",
                 -2.5,
                 2.5,
@@ -592,7 +606,7 @@ def test_relative_to_ref_period_mean(test_processing_scm_df):
                 "a_iam",
                 "a_scenario",
                 "World",
-                "Primary Energy|Coal (2005-01-01 00:00:00 - 2010-01-01 00:00:00 ref. period)",
+                "Primary Energy|Coal {}".format(exp_append_str),
                 "EJ/y",
                 -1.25,
                 1.25,
@@ -603,7 +617,7 @@ def test_relative_to_ref_period_mean(test_processing_scm_df):
                 "a_iam",
                 "a_scenario2",
                 "World",
-                "Primary Energy (2005-01-01 00:00:00 - 2010-01-01 00:00:00 ref. period)",
+                "Primary Energy {}".format(exp_append_str),
                 "EJ/y",
                 -2.5,
                 2.5,
@@ -614,7 +628,7 @@ def test_relative_to_ref_period_mean(test_processing_scm_df):
                 "a_iam",
                 "a_scenario3",
                 "World",
-                "Primary Energy (2005-01-01 00:00:00 - 2010-01-01 00:00:00 ref. period)",
+                "Primary Energy {}".format(exp_append_str),
                 "EJ/y",
                 0.5,
                 -0.5,
@@ -630,13 +644,11 @@ def test_relative_to_ref_period_mean(test_processing_scm_df):
             "unit",
             datetime.datetime(2005, 1, 1),
             datetime.datetime(2010, 1, 1),
-            datetime.datetime(2015, 1, 1),
+            datetime.datetime(2015, 6, 12),
         ],
     )
-    # what to do if ref period does not line up with provided data?
-    obs = test_processing_scm_df.relative_to_ref_period_mean(
-        (datetime.datetime(2005, 1, 1, 0, 0, 0), datetime.datetime(2010, 1, 1, 0, 0, 0))
-    )
+
+    obs = test_processing_scm_df.relative_to_ref_period_mean(append_str=tappend_str, **tfilter)
     pd.testing.assert_frame_equal(exp.set_index(obs.index.names), obs, check_like=True)
 
 
