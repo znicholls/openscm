@@ -483,4 +483,4 @@ def assert_pint_equal(a, b, **kwargs):
             "{}".format(original_msg, note_line, units_lines, numerical_lines)
         )
 
-    raise AssertionError(error_msg)
+        raise AssertionError(error_msg)
