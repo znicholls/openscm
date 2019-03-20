@@ -208,6 +208,11 @@ def load_adapter(name: str) -> type:
 
             adapter = DICE
 
+        elif name == "PH99":
+            from .ph99 import PH99
+
+            adapter = PH99
+
         """
         When implementing an additional adapter, include your adapter NAME here as:
         ```
