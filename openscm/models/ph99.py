@@ -38,6 +38,9 @@ class PH99Model(object):
     foundations, Climatic Change, 41, 303–331, 1999.
     """
 
+    _yr = 1 * unit_registry("yr")
+    """:obj:`pint.Quantity`: one year"""
+
     def __init__(self, time_start=0 * unit_registry("yr")):
         """Initialise an instance of PH99Model
 
@@ -48,9 +51,6 @@ class PH99Model(object):
         """
         self.time_start = time_start
         self.time_current = time_start
-
-    _yr = 1 * unit_registry("yr")
-    """:obj:`pint.Quantity`: one year"""
 
     @property
     def timestep(self):

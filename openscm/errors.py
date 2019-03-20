@@ -79,10 +79,24 @@ class TimeseriesPointsValuesMismatchError(IndexError):
 
 
 class OutOfBoundsError(IndexError):
-    """Error raised when the user attempts to step a model beyond its input data range.
+    """
+    Error raised when the user attempts to step a model beyond its input data range.
     """
 
 
 class OverwriteError(AssertionError):
-    """Error raised when the user's action will overwrite existing data
+    """
+    Error raised when the user's action will overwrite existing data
+    """
+
+
+class ModelNotInitialisedError(Exception):
+    """
+    Exception raised when a model is being used before being initiliased
+    """
+
+
+class NotAnScmParameterError(Exception):
+    """
+    Exception raised when a parameter is passed to an SCM but the SCM doesn't recognise it
     """
