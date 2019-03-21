@@ -29,6 +29,7 @@ def test_adapter_base_class_initialize_run_parameters():
         ParameterSet(), ParameterSet()
     )
     adapter.initialize_run_parameters()
+
     assert adapter._initialized
 
 

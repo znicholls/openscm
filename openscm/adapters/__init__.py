@@ -1,7 +1,7 @@
 """
 Module including all model adapters shipped with OpenSCM.
 """
-
+import datetime as dt
 from abc import ABCMeta, abstractmethod
 from typing import Dict, Optional
 
@@ -9,6 +9,7 @@ import numpy as np
 
 from ..core.parameterset import ParameterSet
 from ..errors import AdapterNeedsModuleError
+
 
 _loaded_adapters: Dict[str, type] = {}
 
@@ -31,6 +32,9 @@ class Adapter(metaclass=ABCMeta):
 
     _initialized: bool
     """``True`` if model has been initialized via :func:`_initialize_model`"""
+
+    _initialized_inputs: bool
+    """True if model inputs have been initialized via :func:`initialize_model_input`"""
 
     _output: ParameterSet
     """Output parameter set"""
@@ -73,6 +77,7 @@ class Adapter(metaclass=ABCMeta):
             self._initialized = True
 
         self._initialize_model_input()
+
 
     def initialize_run_parameters(self) -> None:
         """

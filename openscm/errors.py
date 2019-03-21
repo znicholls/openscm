@@ -98,9 +98,3 @@ class ModelNotInitialisedError(Exception):
     """
     Exception raised when a model is being used before being initiliased
     """
-
-
-class NotAnScmParameterError(Exception):
-    """
-    Exception raised when a parameter is passed to an SCM but the SCM doesn't recognise it
-    """
