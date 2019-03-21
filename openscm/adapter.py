@@ -4,10 +4,12 @@ All model adapters in OpenSCM are implemented as subclasses of the
 
 :ref:`writing-adapters` provides a how-to on implementing an adapter.
 """
-
+import datetime as dt
 from abc import ABCMeta, abstractmethod
 
 from .core import ParameterSet
+from .errors import ParameterEmptyError
+from .utils import convert_datetime_to_openscm_time
 
 
 class Adapter(metaclass=ABCMeta):
@@ -28,6 +30,9 @@ class Adapter(metaclass=ABCMeta):
 
     _initialized: bool
     """True if model has been initialized via :func:`_initialize_model`"""
+
+    _initialized_inputs: bool
+    """True if model inputs have been initialized via :func:`initialize_model_input`"""
 
     _output: ParameterSet
     """Output parameter set"""
@@ -61,6 +66,7 @@ class Adapter(metaclass=ABCMeta):
         self._parameters = input_parameters
         self._output = output_parameters
         self._initialized = False
+        self._initialized_inputs = False
         self._current_time = 0
 
     def __del__(self) -> None:
@@ -80,8 +86,23 @@ class Adapter(metaclass=ABCMeta):
             self._initialize_model()
             self._initialized = True
         self._initialize_model_input()
+        self._ensure_all_defaults_initialised()
 
-    def initialize_run_parameters(self, start_time: int, stop_time: int) -> None:
+    def _ensure_all_defaults_initialised(self) -> None:
+        """
+        Ensure all OpenSCM defaults are also initialised
+        """
+        defaults = [
+            [("start_time",), ("World",), "s", convert_datetime_to_openscm_time(dt.datetime(1750, 1, 1))],
+            [("stop_time",), ("World",), "s", convert_datetime_to_openscm_time(dt.datetime(2500, 1, 1))],
+        ]
+        for d in defaults:
+            try:
+                self._parameters.get_scalar_view(*d[:-1]).get()
+            except ParameterEmptyError:
+                self._parameters.get_writable_scalar_view(*d[:-1]).set(d[-1])
+
+    def initialize_run_parameters(self) -> None:
         """
         Initialize parameters for the run.
 
@@ -100,8 +121,13 @@ class Adapter(metaclass=ABCMeta):
         if not self._initialized:
             self._initialize_model()
             self._initialized = True
-        self._start_time = start_time
-        self._stop_time = stop_time
+        if not self._initialized_inputs:
+            self.initialize_model_input()
+            self._initialized_inputs = True
+
+        self._start_time = self._parameters.get_scalar_view(("start_time",), ("World",), "s").get()
+        self._current_time = self._parameters.get_scalar_view(("start_time",), ("World",), "s").get()
+        self._stop_time = self._parameters.get_scalar_view(("stop_time",), ("World",),"s").get()
         self._initialize_run_parameters()
 
     def reset(self) -> None:

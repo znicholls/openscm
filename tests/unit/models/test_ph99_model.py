@@ -1,20 +1,15 @@
 import re
 from unittest.mock import MagicMock, PropertyMock, patch
 
-
 import numpy as np
 import pytest
-
-
-from openscm.models import PH99Model
-from openscm.errors import OutOfBoundsError, OverwriteError
-from openscm.units import unit_registry
-
-
 from conftest import assert_pint_equal
 
+from openscm.errors import OutOfBoundsError, OverwriteError
+from openscm.models import PH99Model
+from openscm.units import _unit_registry
 
-yr = 1 * unit_registry.year
+yr = 1 * _unit_registry.year
 ONE_YEAR = yr.to("s")
 
 
@@ -24,9 +19,9 @@ def ph99():
 
 
 def test_step_time(ph99):
-    ttimestep = 10 * unit_registry("s")
+    ttimestep = 10 * _unit_registry("s")
     ph99.timestep = ttimestep.copy()
-    tstart_time = 100 * unit_registry("s")
+    tstart_time = 100 * _unit_registry("s")
     ph99.time_current = tstart_time.copy()
 
     ph99._step_time()
@@ -35,9 +30,9 @@ def test_step_time(ph99):
 
 
 def test_emissions_idx(ph99):
-    ph99.emissions = np.array([1, 2]) * unit_registry("GtC/yr")
-    ph99.timestep = 10 * unit_registry("s")
-    ph99.time_start = 10 * unit_registry("s")
+    ph99.emissions = np.array([1, 2]) * _unit_registry("GtC/yr")
+    ph99.timestep = 10 * _unit_registry("s")
+    ph99.time_start = 10 * _unit_registry("s")
     ph99.time_current = ph99.time_start
     assert ph99.emissions_idx == 0
 
@@ -52,9 +47,9 @@ def test_emissions_unset(ph99):
 
 
 def test_emissions_idx_out_of_bounds_error(ph99):
-    ph99.emissions = np.array([10]) * unit_registry("GtC/s")
-    ph99.timestep = 10 * unit_registry("s")
-    ph99.time_start = 10 * unit_registry("s")
+    ph99.emissions = np.array([10]) * _unit_registry("GtC/s")
+    ph99.timestep = 10 * _unit_registry("s")
+    ph99.time_start = 10 * _unit_registry("s")
     ph99.time_current = ph99.time_start + ph99.timestep
 
     error_msg = (
@@ -78,9 +73,9 @@ def test_update_cumulative_emissions():
         mocked_emissions_idx.return_value = 1
 
         ph99 = PH99Model()
-        ph99.timestep = 1 * unit_registry("yr")
-        ph99.cumulative_emissions = np.array([0, np.nan]) * unit_registry("GtC")
-        ph99.emissions = np.array([2, 10]) * unit_registry("GtC/yr")
+        ph99.timestep = 1 * _unit_registry("yr")
+        ph99.cumulative_emissions = np.array([0, np.nan]) * _unit_registry("GtC")
+        ph99.emissions = np.array([2, 10]) * _unit_registry("GtC/yr")
         ph99._check_update_overwrite = MagicMock()
 
         ph99._update_cumulative_emissions()
@@ -88,7 +83,7 @@ def test_update_cumulative_emissions():
         # State variables are start of year values hence emissions only arrive in
         # output array in the next year. Hence add 10 GtC / yr * 1 yr to end
         # cumulative emissions array.
-        expected = np.array([0, 2]) * unit_registry("GtC")
+        expected = np.array([0, 2]) * _unit_registry("GtC")
 
         assert_pint_equal(ph99.cumulative_emissions, expected)
 
@@ -103,28 +98,28 @@ def test_update_concentrations():
 
         ph99 = PH99Model()
 
-        ttimestep = 1 * unit_registry("yr")
+        ttimestep = 1 * _unit_registry("yr")
         ph99.timestep = ttimestep
 
-        tb = 1.5 * 10 ** -3 * unit_registry("ppm / (GtC * yr)")
+        tb = 1.5 * 10 ** -3 * _unit_registry("ppm / (GtC * yr)")
         ph99.b = tb
 
-        tcumulative_emissions = np.array([0, 2]) * unit_registry("GtC")
+        tcumulative_emissions = np.array([0, 2]) * _unit_registry("GtC")
         ph99.cumulative_emissions = tcumulative_emissions.copy()
 
-        tbeta = 0.46 * unit_registry("ppm/GtC")
+        tbeta = 0.46 * _unit_registry("ppm/GtC")
         ph99.beta = tbeta
 
-        temissions = np.array([2, 3]) * unit_registry("GtC/yr")
+        temissions = np.array([2, 3]) * _unit_registry("GtC/yr")
         ph99.emissions = temissions.copy()
 
-        tsigma = 2.14 * 10 ** -2 * unit_registry("1/yr")
+        tsigma = 2.14 * 10 ** -2 * _unit_registry("1/yr")
         ph99.sigma = tsigma
 
-        tc1 = 289 * unit_registry("ppm")
+        tc1 = 289 * _unit_registry("ppm")
         ph99.c1 = tc1
 
-        tconcentrations = np.array([300, np.nan]) * unit_registry("ppm")
+        tconcentrations = np.array([300, np.nan]) * _unit_registry("ppm")
         ph99.concentrations = tconcentrations.copy()
 
         ph99._check_update_overwrite = MagicMock()
@@ -145,7 +140,7 @@ def test_update_concentrations():
 
         expected = np.array(
             [tconcentrations[0].magnitude, expected_next_year_conc.magnitude]
-        ) * unit_registry("ppm")
+        ) * _unit_registry("ppm")
         assert_pint_equal(ph99.concentrations, expected)
 
         ph99._check_update_overwrite.assert_called_with("_concentrations")
@@ -159,25 +154,25 @@ def test_update_temperatures():
 
         ph99 = PH99Model()
 
-        ttimestep = 1 * unit_registry("yr")
+        ttimestep = 1 * _unit_registry("yr")
         ph99.timestep = ttimestep
 
-        tmu = unit_registry.Quantity(8.6 * 10 ** -2, "degC/yr")
+        tmu = _unit_registry.Quantity(8.6 * 10 ** -2, "degC/yr")
         ph99.mu = tmu
 
-        tc1 = 289 * unit_registry("ppm")
+        tc1 = 289 * _unit_registry("ppm")
         ph99.c1 = tc1
 
-        tconcentrations = np.array([300, np.nan]) * unit_registry("ppm")
+        tconcentrations = np.array([300, np.nan]) * _unit_registry("ppm")
         ph99.concentrations = tconcentrations.copy()
 
-        talpha = 1.6 * 10 ** -2 * unit_registry("1/yr")
+        talpha = 1.6 * 10 ** -2 * _unit_registry("1/yr")
         ph99.alpha = talpha
 
-        tt1 = unit_registry.Quantity(14.7, "degC")
+        tt1 = _unit_registry.Quantity(14.7, "degC")
         ph99.t1 = tt1
 
-        ttemperatures = unit_registry.Quantity(np.array([14.5, np.nan]), "degC")
+        ttemperatures = _unit_registry.Quantity(np.array([14.5, np.nan]), "degC")
         ph99.temperatures = ttemperatures.copy()
 
         ph99._check_update_overwrite = MagicMock()
@@ -191,7 +186,7 @@ def test_update_temperatures():
 
         expected = np.array(
             [ttemperatures[0].magnitude, expected_next_year_temp.magnitude]
-        ) * unit_registry("degC")
+        ) * _unit_registry("degC")
         assert_pint_equal(ph99.temperatures, expected)
 
         ph99._check_update_overwrite.assert_called_with("_temperatures")
@@ -205,11 +200,11 @@ def test_check_update_overwrite():
 
         ph99 = PH99Model()
 
-        ph99.cumulative_emissions = np.array([0, np.nan]) * unit_registry("GtC")
+        ph99.cumulative_emissions = np.array([0, np.nan]) * _unit_registry("GtC")
         # should pass without error
         ph99._check_update_overwrite("cumulative_emissions")
 
-        ph99.cumulative_emissions = np.array([0, 10]) * unit_registry("GtC")
+        ph99.cumulative_emissions = np.array([0, 10]) * _unit_registry("GtC")
         error_msg = re.escape(
             "Stepping cumulative_emissions will overwrite existing data"
         )
@@ -233,14 +228,14 @@ def test_step(ph99):
 
 def test_time_current(ph99):
     assert ph99.time_current.magnitude == 0
-    assert ph99.time_current.units == unit_registry("yr")
+    assert ph99.time_current.units == _unit_registry("yr")
 
-    ph99.time_current = 10 * unit_registry("s")
+    ph99.time_current = 10 * _unit_registry("s")
 
     np.testing.assert_allclose(
-        ph99.time_current.magnitude, 10 / unit_registry("yr").to("s").magnitude
+        ph99.time_current.magnitude, 10 / _unit_registry("yr").to("s").magnitude
     )
-    assert ph99.time_current.units == unit_registry("yr")
+    assert ph99.time_current.units == _unit_registry("yr")
 
 
 def test_run_no_emissions(ph99):
@@ -250,7 +245,7 @@ def test_run_no_emissions(ph99):
 
 
 def test_run(ph99):
-    ph99.emissions = np.array([2, 10, 3, 4]) * unit_registry("GtC/yr")
+    ph99.emissions = np.array([2, 10, 3, 4]) * _unit_registry("GtC/yr")
     ph99.step = MagicMock()
 
     ph99.run()

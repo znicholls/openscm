@@ -16,6 +16,11 @@ from openscm import timeseries_converter
 from openscm.core import ParameterSet
 from openscm.parameters import ParameterType
 from openscm.scmdataframe import ScmDataFrame
+from openscm.timeseries_converter import (
+    ExtrapolationType,
+    InterpolationType,
+    create_time_points,
+)
 from openscm.utils import convert_openscm_time_to_datetime
 
 try:
@@ -248,6 +253,7 @@ def rcp26():
     return ScmDataFrame(fname)
 
 
+@pytest.fixture(scope="function")
 def test_adapter(request):
     """
     Get an initialized instance of an the requesting classes ``tadapter`` property.
@@ -278,6 +284,55 @@ def assert_core():
 def test_run_parameters():
     RunParameters = namedtuple("RunParameters", ["start_time", "stop_time"])
     yield RunParameters(start_time=0, stop_time=100 * 365 * 24 * 60 * 60)
+
+
+@pytest.fixture(scope="function")
+def test_drivers():
+    drivers = ParameterSet()
+    setters = {
+        "start_time": 10,
+        "stop_time": 500 * 365 * 24 * 60 * 60,
+        "period_length": 31556926,
+        "emissions_parameter_type": ParameterType.AVERAGE_TIMESERIES,
+        "ecs": 2.5,
+        "rf2xco2": 3.5,
+    }
+
+    drivers.get_writable_scalar_view(("ecs",), ("World",), "K").set(setters["ecs"])
+    drivers.get_writable_scalar_view(("rf2xco2",), ("World",), "W / m^2").set(setters["rf2xco2"])
+
+    drivers.get_writable_scalar_view(
+        ("start_time",), ("World",), "s"
+    ).set(setters["start_time"])
+    drivers.get_writable_scalar_view(
+        ("stop_time",), ("World",), "s"
+    ).set(setters["stop_time"])
+
+    setters["timestep_count"] = (
+        setters["stop_time"] - setters["start_time"]
+    ) // setters["period_length"] + 1
+    setters["emissions_time_points"] = create_time_points(
+        setters["start_time"],
+        setters["period_length"],
+        setters["timestep_count"],
+        setters["emissions_parameter_type"],
+    )
+
+    setters["emissions"] = (
+        np.linspace(0, 40, setters["timestep_count"])
+        * np.sin(np.arange(setters["timestep_count"]) * 2 * np.pi / 50)
+    )
+    drivers.get_writable_timeseries_view(
+        ("Emissions", "CO2"),
+        ("World",),
+        "GtCO2/a",
+        setters["emissions_time_points"],
+        setters["emissions_parameter_type"],
+        InterpolationType.LINEAR,
+        ExtrapolationType.LINEAR,
+    ).set(setters["emissions"])
+
+    yield {"ParameterSet": drivers, "setters": setters}
 
 
 possible_source_values = [[1, 5, 3, 5, 7, 3, 2, 9]]
