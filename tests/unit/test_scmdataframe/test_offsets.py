@@ -1,19 +1,24 @@
 from datetime import datetime
 from types import GeneratorType
 
+import numpy as np
 import pytest
+from pandas.tseries.offsets import DateOffset, NaT
 
-from openscm.scmdataframe.offsets import to_offset, generate_range
+from openscm.scmdataframe.offsets import apply_dt, generate_range, to_offset
 
 
-@pytest.mark.parametrize("offset_rule", ["B", "C", "BM", "BMS", "CBM", "CBMS", "BQ", "BSS", "BA", "BAS", "RE", "BH", "CBH"])
+@pytest.mark.parametrize(
+    "offset_rule",
+    ["B", "C", "BM", "BMS", "CBM", "CBMS", "BQ", "BSS", "BA", "BAS", "RE", "BH", "CBH"],
+)
 def test_invalid_offsets(offset_rule):
     with pytest.raises(ValueError):
         to_offset(offset_rule)
 
 
 def test_annual_start():
-    offset = to_offset('AS')
+    offset = to_offset("AS")
     dt = datetime(2001, 2, 12)
 
     res = offset.apply(dt)
@@ -34,7 +39,7 @@ def test_annual_start():
 
 
 def test_month_start():
-    offset = to_offset('MS')
+    offset = to_offset("MS")
     dt = datetime(2001, 2, 12)
 
     res = offset.apply(dt)
@@ -55,7 +60,7 @@ def test_month_start():
 
 
 def test_generate_range():
-    offset = to_offset('AS')
+    offset = to_offset("AS")
     start = datetime(2000, 2, 12)
     end = datetime(2001, 2, 12)
 
@@ -66,3 +71,24 @@ def test_generate_range():
     assert dts[0] == datetime(2000, 1, 1)
     assert dts[1] == datetime(2001, 1, 1)
     assert dts[2] == datetime(2002, 1, 1)
+
+
+@pytest.mark.parametrize("inp", [np.nan, NaT])
+def test_nan_apply_dt_errors(inp):
+    offset = DateOffset()
+
+    def tmp_return(s, x):
+        return x
+
+    test_func = apply_dt(tmp_return, offset)
+    assert test_func(inp) is NaT
+
+
+def test_nan_apply_dt_normalize():
+    offset = DateOffset(normalize=True)
+
+    def tmp_return(s, x):
+        return x
+
+    test_func = apply_dt(tmp_return, offset)
+    assert test_func(datetime(2000, 1, 1, 13, 10, 1)) == datetime(2000, 1, 1, 0, 0, 0)
