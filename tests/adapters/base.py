@@ -103,12 +103,6 @@ class _AdapterTester:
             [-10, 0, 10],
             ParameterType.POINT_TIMESERIES,
         ).set(set_values)
-        # if you try to initialise and run with a timeseries that can't be used,
-        # you get a warning
-        assert raises_warning(test_adapter.initialize_model_input(
-            start_time,
-            end_time
-        ))
 
         test_adapter._output.get_writable_timeseries_view(
             ("Atmospheric Concentrations", "CO2"),
@@ -131,22 +125,6 @@ class _AdapterTester:
             [-10, 0, 10],
             ParameterType.POINT_TIMESERIES,
         ).get(), 0)
-
-    def test_initialize_initialize_model_input_non_model_parameter(self, test_adapter):
-        test_adapter._output.get_writable_timeseries_view(
-            ("Emissions", "exotic gas"),
-            ("World",),
-            "GtE/yr",
-            [-10, 0, 10],
-            ParameterType.POINT_TIMESERIES,
-        ).set([1, 2, 3])
-
-        assert not test_adapter._initialized
-        # if you try to initialise and run with an input that can't be used,
-        # you get a warning
-        assert raises_warning(test_adapter.initialize_model_input(start_time, end_time)    )
-        error_msg = "model cannot be "
-        # TODO test that ("Emissions", "exotic gas") has not been used
 
     def test_initialize_run_parameters(self, test_adapter):
         """
