@@ -39,7 +39,9 @@ def test_adapter_base_class_run():
 
     Adapter.__abstractmethods__ = set()
     in_parameters = ParameterSet()
-    in_parameters.get_writable_scalar_view(("start_time",), ("World"), "s").set(start_time)
+    in_parameters.get_writable_scalar_view(("start_time",), ("World"), "s").set(
+        start_time
+    )
     adapter = Adapter(  # pylint: disable=abstract-class-instantiated
         in_parameters, ParameterSet()
     )

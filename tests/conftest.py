@@ -299,14 +299,16 @@ def test_drivers():
     }
 
     drivers.get_writable_scalar_view(("ecs",), ("World",), "K").set(setters["ecs"])
-    drivers.get_writable_scalar_view(("rf2xco2",), ("World",), "W / m^2").set(setters["rf2xco2"])
+    drivers.get_writable_scalar_view(("rf2xco2",), ("World",), "W / m^2").set(
+        setters["rf2xco2"]
+    )
 
-    drivers.get_writable_scalar_view(
-        ("start_time",), ("World",), "s"
-    ).set(setters["start_time"])
-    drivers.get_writable_scalar_view(
-        ("stop_time",), ("World",), "s"
-    ).set(setters["stop_time"])
+    drivers.get_writable_scalar_view(("start_time",), ("World",), "s").set(
+        setters["start_time"]
+    )
+    drivers.get_writable_scalar_view(("stop_time",), ("World",), "s").set(
+        setters["stop_time"]
+    )
 
     setters["timestep_count"] = (
         setters["stop_time"] - setters["start_time"]
@@ -318,9 +320,8 @@ def test_drivers():
         setters["emissions_parameter_type"],
     )
 
-    setters["emissions"] = (
-        np.linspace(0, 40, setters["timestep_count"])
-        * np.sin(np.arange(setters["timestep_count"]) * 2 * np.pi / 50)
+    setters["emissions"] = np.linspace(0, 40, setters["timestep_count"]) * np.sin(
+        np.arange(setters["timestep_count"]) * 2 * np.pi / 50
     )
     drivers.get_writable_timeseries_view(
         ("Emissions", "CO2"),

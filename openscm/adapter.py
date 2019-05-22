@@ -93,8 +93,18 @@ class Adapter(metaclass=ABCMeta):
         Ensure all OpenSCM defaults are also initialised
         """
         defaults = [
-            [("start_time",), ("World",), "s", convert_datetime_to_openscm_time(dt.datetime(1750, 1, 1))],
-            [("stop_time",), ("World",), "s", convert_datetime_to_openscm_time(dt.datetime(2500, 1, 1))],
+            [
+                ("start_time",),
+                ("World",),
+                "s",
+                convert_datetime_to_openscm_time(dt.datetime(1750, 1, 1)),
+            ],
+            [
+                ("stop_time",),
+                ("World",),
+                "s",
+                convert_datetime_to_openscm_time(dt.datetime(2500, 1, 1)),
+            ],
         ]
         for d in defaults:
             try:
@@ -125,9 +135,15 @@ class Adapter(metaclass=ABCMeta):
             self.initialize_model_input()
             self._initialized_inputs = True
 
-        self._start_time = self._parameters.get_scalar_view(("start_time",), ("World",), "s").get()
-        self._current_time = self._parameters.get_scalar_view(("start_time",), ("World",), "s").get()
-        self._stop_time = self._parameters.get_scalar_view(("stop_time",), ("World",),"s").get()
+        self._start_time = self._parameters.get_scalar_view(
+            ("start_time",), ("World",), "s"
+        ).get()
+        self._current_time = self._parameters.get_scalar_view(
+            ("start_time",), ("World",), "s"
+        ).get()
+        self._stop_time = self._parameters.get_scalar_view(
+            ("stop_time",), ("World",), "s"
+        ).get()
         self._initialize_run_parameters()
 
     def reset(self) -> None:

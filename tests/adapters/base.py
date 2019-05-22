@@ -1,12 +1,9 @@
-import re
-
 import numpy as np
 import pytest
 
 from openscm.core import ParameterSet
 from openscm.errors import ParameterEmptyError
 from openscm.parameters import ParameterType
-from openscm.timeseries_converter import InterpolationType, create_time_points
 
 
 class _AdapterTester:
@@ -24,6 +21,7 @@ class _AdapterTester:
     """
     Adapter to test
     """
+
     def test_init(self, test_adapter):
         """
         Test the adapter is initiated as intended.
@@ -41,7 +39,13 @@ class _AdapterTester:
             == 4
         )
         with pytest.raises(ParameterEmptyError):
-            test_adapter._output.get_timeseries_view(("Emissions", "CO2"), ("World",), "GtCO2/yr", [1, 10**6], ParameterType.AVERAGE_TIMESERIES).get()
+            test_adapter._output.get_timeseries_view(
+                ("Emissions", "CO2"),
+                ("World",),
+                "GtCO2/yr",
+                [1, 10 ** 6],
+                ParameterType.AVERAGE_TIMESERIES,
+            ).get()
 
     def test_shutdown(self, test_adapter):
         """
@@ -64,7 +68,8 @@ class _AdapterTester:
         assert test_adapter._initialized
 
         assert (
-            test_adapter._parameters.get_scalar_view(("ecs",), ("World",), "K").get() == 3
+            test_adapter._parameters.get_scalar_view(("ecs",), ("World",), "K").get()
+            == 3
         )
         assert (
             test_adapter._parameters.get_scalar_view(
@@ -90,12 +95,12 @@ class _AdapterTester:
         in_parameters = test_drivers["ParameterSet"]
         start_time = 30
         stop_time = 250 * 365 * 24 * 60 * 60
-        in_parameters.get_writable_scalar_view(
-            ("start_time",), ("World",), "s"
-        ).set(start_time)
-        in_parameters.get_writable_scalar_view(
-            ("stop_time",), ("World",), "s"
-        ).set(stop_time)
+        in_parameters.get_writable_scalar_view(("start_time",), ("World",), "s").set(
+            start_time
+        )
+        in_parameters.get_writable_scalar_view(("stop_time",), ("World",), "s").set(
+            stop_time
+        )
 
         out_parameters = ParameterSet()
         tadapter = self.tadapter(in_parameters, out_parameters)
@@ -117,16 +122,21 @@ class _AdapterTester:
             == stop_time
         )
         assert (
-            in_parameters.get_scalar_view("ecs", ("World",), "K").get() == expected["ecs"]
+            in_parameters.get_scalar_view("ecs", ("World",), "K").get()
+            == expected["ecs"]
         )
         assert (
-            in_parameters.get_scalar_view(
-                ("rf2xco2",), ("World",), "W / m^2"
-            ).get()
+            in_parameters.get_scalar_view(("rf2xco2",), ("World",), "W / m^2").get()
             == expected["rf2xco2"]
         )
         np.testing.assert_allclose(
-            tadapter._parameters.get_timeseries_view(("Emissions", "CO2"), ("World",), "GtCO2/yr", expected["emissions_time_points"], ParameterType.AVERAGE_TIMESERIES).get(),
+            tadapter._parameters.get_timeseries_view(
+                ("Emissions", "CO2"),
+                ("World",),
+                "GtCO2/yr",
+                expected["emissions_time_points"],
+                ParameterType.AVERAGE_TIMESERIES,
+            ).get(),
             expected["emissions"],
             rtol=1e-10,
             atol=1e-15,
@@ -140,8 +150,8 @@ class _AdapterTester:
     #         "{} is not a {} parameter".format(tname[0], self.tadapter.__name__)
     #     )
 
-        # with pytest.raises(NotAnScmParameterError, match=error_msg):
-        #     test_adapter.initialize_run_parameters()
+    # with pytest.raises(NotAnScmParameterError, match=error_msg):
+    #     test_adapter.initialize_run_parameters()
 
     def test_run(self, test_drivers):
         in_parameters = test_drivers["ParameterSet"]
@@ -154,13 +164,11 @@ class _AdapterTester:
         tadapter.run()
 
     def test_step(self, test_drivers):
-        expected = test_drivers["setters"]
-
         in_parameters = test_drivers["ParameterSet"]
         start_time = 30
-        in_parameters.get_writable_scalar_view(
-            ("start_time",), ("World",), "s"
-        ).set(start_time)
+        in_parameters.get_writable_scalar_view(("start_time",), ("World",), "s").set(
+            start_time
+        )
 
         out_parameters = ParameterSet()
         tadapter = self.tadapter(in_parameters, out_parameters)
