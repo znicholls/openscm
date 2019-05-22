@@ -300,14 +300,14 @@ class PH99Model:  # pylint: disable=too-many-instance-attributes
 
         res = (self._time_current - self._time_start) / self._timestep
         if not (-10 ** -5 < (res - round(res)) < 10 ** -5):
-            err_msg = (
+            err_msg = (  # pragma: no cover # emergency valve
                 "somehow you have reached a point in time which isn't a multiple "
                 "of your timeperiod..."
             )
-            raise AssertionError(err_msg)
+            raise AssertionError(err_msg)  # pragma: no cover # emergency valve
 
         if res < 0:
-            raise AssertionError(
+            raise AssertionError(  # pragma: no cover # emergency valve
                 "somehow you have reached a point in time which is before your "
                 "starting point..."
             )

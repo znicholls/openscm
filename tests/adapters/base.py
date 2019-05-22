@@ -149,6 +149,8 @@ class _AdapterTester:
         test_adapter.run()
 
     def test_step(self, test_adapter, test_run_parameters):
+        # TODO: add some tests about where input and output go to make sure adapter
+        # isn't overwriting anything it's not meant to by accident
         self.prepare_run_input(
             test_adapter, test_run_parameters.start_time, test_run_parameters.stop_time
         )

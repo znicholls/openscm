@@ -439,13 +439,15 @@ def test_drivers():
         "stop_time": 500 * 365 * 24 * 60 * 60,
         "period_length": 31556926,
         "emissions_parameter_type": ParameterType.AVERAGE_TIMESERIES,
-        "ecs": 2.5,
-        "rf2xco2": 3.5,
+        "ecs": 2.5 * _unit_registry("delta_degC"),
+        "rf2xco2": 3.5 * _unit_registry("W/m^2"),
     }
 
-    drivers.get_writable_scalar_view(("ecs",), ("World",), "K").set(setters["ecs"])
+    drivers.get_writable_scalar_view(("ecs",), ("World",), "K").set(
+        setters["ecs"].magnitude
+    )
     drivers.get_writable_scalar_view(("rf2xco2",), ("World",), "W / m^2").set(
-        setters["rf2xco2"]
+        setters["rf2xco2"].magnitude
     )
 
     drivers.get_writable_scalar_view(("start_time",), ("World",), "s").set(
@@ -465,18 +467,20 @@ def test_drivers():
         setters["emissions_parameter_type"],
     )
 
-    setters["emissions"] = np.linspace(0, 40, setters["timestep_count"]) * np.sin(
-        np.arange(setters["timestep_count"]) * 2 * np.pi / 50
+    setters["emissions"] = (
+        np.linspace(0, 40, setters["timestep_count"])
+        * np.sin(np.arange(setters["timestep_count"]) * 2 * np.pi / 50)
+        * _unit_registry("GtCO2/a")
     )
     drivers.get_writable_timeseries_view(
         ("Emissions", "CO2"),
         ("World",),
-        "GtCO2/a",
+        str(setters["emissions"].units),
         setters["emissions_time_points"],
         setters["emissions_parameter_type"],
         InterpolationType.LINEAR,
         ExtrapolationType.LINEAR,
-    ).set(setters["emissions"])
+    ).set(setters["emissions"].magnitude)
 
     yield {"ParameterSet": drivers, "setters": setters}
 

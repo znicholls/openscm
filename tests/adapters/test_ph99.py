@@ -1,13 +1,17 @@
 import datetime as dt
+import re
 
 import numpy as np
 import pytest
 from base import _AdapterTester
+from conftest import assert_pint_equal
 
 from openscm.adapters.ph99 import PH99
 from openscm.core import ParameterSet
+from openscm.errors import ParameterEmptyError
 from openscm.parameters import ParameterType
 from openscm.timeseries_converter import InterpolationType, create_time_points
+from openscm.units import _unit_registry
 from openscm.utils import convert_datetime_to_openscm_time
 
 
@@ -36,6 +40,63 @@ class TestPH99Adapter(_AdapterTester):
         assert in_parameters.get_scalar_view(
             ("stop_time",), ("World",), "s"
         ).get() == convert_datetime_to_openscm_time(dt.datetime(2500, 1, 1))
+
+    def test_altering_ecs_rf2xco2_also_alters_alpha_mu(self, test_drivers):
+        expected = test_drivers["setters"]
+        in_parameters = test_drivers["ParameterSet"]
+
+        out_parameters = ParameterSet()
+        tadapter = self.tadapter(in_parameters, out_parameters)
+
+        rf2xco2 = 3.5
+        in_parameters.get_writable_scalar_view(("rf2xco2",), ("World",), "W/m^2").set(
+            rf2xco2
+        )
+        alpha = 1.9 * 10 ** -2
+        in_parameters.get_writable_scalar_view(("alpha",), ("World",), "1/yr").set(
+            alpha
+        )
+        mu = 8.9 * 10 ** -2
+        in_parameters.get_writable_scalar_view(("mu",), ("World",), "degC/yr").set(mu)
+
+        tadapter.initialize_run_parameters()
+        # TODO: fix this, at the moment it's a weird race re which parameter overrides
+        # which other one...
+        assert_pint_equal(
+            tadapter.model.alpha, tadapter.model.mu * np.log(2) / expected["ecs"]
+        )
+        assert_pint_equal(
+            tadapter.model.mu,
+            _unit_registry.Quantity(rf2xco2, "W/m^2") / tadapter._hc_per_m2_approx,
+        )
+        np.testing.assert_allclose(
+            in_parameters.get_scalar_view(("rf2xco2",), ("World",), "W/m^2").get(),
+            rf2xco2,
+        )
+
+        in_parameters.get_writable_scalar_view(("rf2xco2",), ("World",), "W/m^2").set(
+            2 * rf2xco2
+        )
+        tadapter.initialize_run_parameters()
+
+        assert_pint_equal(
+            tadapter.model.alpha, tadapter.model.mu * np.log(2) / expected["ecs"]
+        )
+        assert_pint_equal(
+            tadapter.model.mu,
+            _unit_registry.Quantity(2 * rf2xco2, "W/m^2") / tadapter._hc_per_m2_approx,
+        )
+        np.testing.assert_allclose(
+            in_parameters.get_scalar_view(("rf2xco2",), ("World",), "W/m^2").get(),
+            2 * rf2xco2,
+        )
+
+        np.testing.assert_allclose(
+            tadapter._parameters.get_scalar_view(
+                ("rf2xco2",), ("World",), "W/m^2"
+            ).get(),
+            2 * rf2xco2,
+        )
 
     def test_initialize_run_parameters_ph99_specific(self, test_drivers):
         expected = test_drivers["setters"]
@@ -132,5 +193,11 @@ class TestPH99Adapter(_AdapterTester):
             ParameterType.POINT_TIMESERIES,
         ).get()
         np.testing.assert_allclose(
-            temp_2017_2018, np.array([-0.0008942013640017765, -0.00202055345682164])
+            temp_2017_2018, np.array([-0.0014210304671432464, -0.002470092503400667])
         )
+
+    def test_run_no_emissions_error(self, test_adapter):
+        test_adapter.initialize_model_input()
+        error_msg = re.escape("PH99 requires ('Emissions', 'CO2') in order to run")
+        with pytest.raises(ParameterEmptyError, match=error_msg):
+            test_adapter.initialize_run_parameters()
