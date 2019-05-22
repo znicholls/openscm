@@ -73,11 +73,11 @@ class Adapter(metaclass=ABCMeta):
         :func:`run` or :func:`step`.
         """
         if not self._initialized:
+            self._ensure_all_defaults_included_in_parameters()
             self._initialize_model()
             self._initialized = True
 
         self._initialize_model_input()
-
 
     def initialize_run_parameters(self) -> None:
         """
@@ -87,6 +87,7 @@ class Adapter(metaclass=ABCMeta):
         :func:`run` or :func:`step`.
         """
         if not self._initialized:
+            self._ensure_all_defaults_included_in_parameters()
             self._initialize_model()
             self._initialized = True
 
