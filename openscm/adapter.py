@@ -83,34 +83,39 @@ class Adapter(metaclass=ABCMeta):
         `run` or `step`.
         """
         if not self._initialized:
+            self._ensure_all_defaults_included_in_parameters()
             self._initialize_model()
             self._initialized = True
         self._initialize_model_input()
-        self._ensure_all_defaults_initialised()
 
-    def _ensure_all_defaults_initialised(self) -> None:
+    def _ensure_all_defaults_included_in_parameters(self) -> None:
         """
         Ensure all OpenSCM defaults are also initialised
         """
         defaults = [
-            [
-                ("start_time",),
-                ("World",),
-                "s",
-                convert_datetime_to_openscm_time(dt.datetime(1750, 1, 1)),
-            ],
-            [
-                ("stop_time",),
-                ("World",),
-                "s",
-                convert_datetime_to_openscm_time(dt.datetime(2500, 1, 1)),
-            ],
+            {
+                "name": ("start_time",),
+                "region": ("World",),
+                "unit": "s",
+                "value": convert_datetime_to_openscm_time(dt.datetime(1750, 1, 1)),
+            },
+            {
+                "name": ("stop_time",),
+                "region": ("World",),
+                "unit": "s",
+                "value": convert_datetime_to_openscm_time(dt.datetime(2500, 1, 1)),
+            },
         ]
         for d in defaults:
+            get_args = {k: v for k, v in d.items() if k != "value"}
+            def_value = d["value"]
             try:
-                self._parameters.get_scalar_view(*d[:-1]).get()
+                # mypy can't do type checking on dict being used as kwargs
+                self._parameters.get_scalar_view(**get_args).get()  # type: ignore
             except ParameterEmptyError:
-                self._parameters.get_writable_scalar_view(*d[:-1]).set(d[-1])
+                self._parameters.get_writable_scalar_view(  # type: ignore
+                    **get_args
+                ).set(def_value)
 
     def initialize_run_parameters(self) -> None:
         """
@@ -129,21 +134,22 @@ class Adapter(metaclass=ABCMeta):
             ``1970-01-01 00:00:00``)
         """
         if not self._initialized:
+            self._ensure_all_defaults_included_in_parameters()
             self._initialize_model()
             self._initialized = True
         if not self._initialized_inputs:
             self.initialize_model_input()
             self._initialized_inputs = True
 
-        self._start_time = self._parameters.get_scalar_view(
-            ("start_time",), ("World",), "s"
-        ).get()
-        self._current_time = self._parameters.get_scalar_view(
-            ("start_time",), ("World",), "s"
-        ).get()
-        self._stop_time = self._parameters.get_scalar_view(
-            ("stop_time",), ("World",), "s"
-        ).get()
+        self._start_time = int(
+            self._parameters.get_scalar_view(("start_time",), ("World",), "s").get()
+        )
+        self._current_time = int(
+            self._parameters.get_scalar_view(("start_time",), ("World",), "s").get()
+        )
+        self._stop_time = int(
+            self._parameters.get_scalar_view(("stop_time",), ("World",), "s").get()
+        )
         self._initialize_run_parameters()
 
     def reset(self) -> None:

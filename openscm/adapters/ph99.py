@@ -1,7 +1,6 @@
 """
 Adapter for the simple climate model first presented in Petschel-Held Climatic Change 1999.
 """
-import datetime as dt
 import warnings
 
 import numpy as np
@@ -12,7 +11,6 @@ from ..models import PH99Model
 from ..parameters import ParameterType
 from ..timeseries_converter import InterpolationType, create_time_points
 from ..units import _unit_registry
-from ..utils import convert_datetime_to_openscm_time
 
 
 class PH99(Adapter):
@@ -36,25 +34,6 @@ class PH99(Adapter):
         Initialize the model.
         """
         self.model = PH99Model()  # pylint: disable=attribute-defined-outside-init
-        defaults = [
-            [
-                ("start_time",),
-                ("World",),
-                "s",
-                convert_datetime_to_openscm_time(dt.datetime(1750, 1, 1)),
-            ],
-            [
-                ("stop_time",),
-                ("World",),
-                "s",
-                convert_datetime_to_openscm_time(dt.datetime(2500, 1, 1)),
-            ],
-        ]
-        for d in defaults:
-            try:
-                self._parameters.get_scalar_view(*d[:-1]).get()
-            except ParameterEmptyError:
-                self._parameters.get_writable_scalar_view(*d[:-1]).set(d[-1])
 
         for att in dir(self.model):
             if not att.startswith(("_", "emissions_idx")):
@@ -134,8 +113,8 @@ class PH99(Adapter):
             raise ParameterEmptyError(
                 "PH99 requires ('Emissions', 'CO2') in order to run"
             )
-        else:
-            self.model.emissions = emms_view.get() * emms_units
+
+        self.model.emissions = emms_view.get() * emms_units
 
     def _set_model_parameter(self, para_name, value):
         try:
