@@ -16,6 +16,7 @@ class _AdapterTester:
     """
     Adapter to test
     """
+
     def test_init(self, test_adapter):
         """
         Test the adapter is initiated as intended.
@@ -33,7 +34,13 @@ class _AdapterTester:
             == 4
         )
         with pytest.raises(ParameterEmptyError):
-            test_adapter._output.get_timeseries_view(("Emissions", "CO2"), ("World",), "GtCO2/yr", [1, 10**6], ParameterType.AVERAGE_TIMESERIES).get()
+            test_adapter._output.get_timeseries_view(
+                ("Emissions", "CO2"),
+                ("World",),
+                "GtCO2/yr",
+                [1, 10 ** 6],
+                ParameterType.AVERAGE_TIMESERIES,
+            ).get()
 
     def test_shutdown(self, test_adapter):
         """
@@ -55,6 +62,26 @@ class _AdapterTester:
         test_adapter.initialize_model_input()
         assert test_adapter._initialized
 
+        # TODO: add tests something like below
+        # assert (
+        #     test_adapter._parameters.get_scalar_view(("ecs",), ("World",), "K").get()
+        #     == 3
+        # )
+        # assert (
+        #     test_adapter._parameters.get_scalar_view(
+        #         ("rf2xco2",), ("World",), "W / m^2"
+        #     ).get()
+        #     == 4
+        # )
+
+    # TODO: move this into issue about run tests
+    # def test_initialize_model_input_non_model_parameter(
+    #     self, test_adapter, test_drivers
+    # ):
+    #     tname = ("junk",)
+    #     test_adapter._parameters.get_writable_scalar_view(tname, ("World",), "K").set(4)
+    #     test_adapter.initialize_model_input()
+    #     # TODO test that "junk" has not been used
 
     def test_initialize_run_parameters(self, test_adapter, test_run_parameters):
         """
@@ -63,6 +90,7 @@ class _AdapterTester:
         self.prepare_run_input(
             test_adapter, test_run_parameters.start_time, test_run_parameters.stop_time
         )
+        # TODO: uncomment these tests and check passing worked as intended
         # expected = test_drivers["setters"]
         # in_parameters = test_drivers["ParameterSet"]
         # start_time = 30
@@ -77,7 +105,6 @@ class _AdapterTester:
         # out_parameters = ParameterSet()
         # tadapter = self.tadapter(in_parameters, out_parameters)
 
-        
         assert not test_adapter._initialized
         test_adapter.initialize_run_parameters()
         assert test_adapter._initialized
@@ -144,8 +171,8 @@ class _AdapterTester:
     #         "{} is not a {} parameter".format(tname[0], self.tadapter.__name__)
     #     )
 
-        # with pytest.raises(NotAnScmParameterError, match=error_msg):
-        #     test_adapter.initialize_run_parameters()
+    # with pytest.raises(NotAnScmParameterError, match=error_msg):
+    #     test_adapter.initialize_run_parameters()
 
 
     @abstractmethod

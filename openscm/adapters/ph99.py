@@ -7,7 +7,6 @@ import warnings
 import numpy as np
 
 from ..adapter import Adapter
-from ..core import ParameterSet
 from ..errors import ParameterEmptyError
 from ..models import PH99Model
 from ..parameters import ParameterType
@@ -38,8 +37,18 @@ class PH99(Adapter):
         """
         self.model = PH99Model()  # pylint: disable=attribute-defined-outside-init
         defaults = [
-            [("start_time",), ("World",), "s", convert_datetime_to_openscm_time(dt.datetime(1750, 1, 1))],
-            [("stop_time",), ("World",), "s", convert_datetime_to_openscm_time(dt.datetime(2500, 1, 1))],
+            [
+                ("start_time",),
+                ("World",),
+                "s",
+                convert_datetime_to_openscm_time(dt.datetime(1750, 1, 1)),
+            ],
+            [
+                ("stop_time",),
+                ("World",),
+                "s",
+                convert_datetime_to_openscm_time(dt.datetime(2500, 1, 1)),
+            ],
         ]
         for d in defaults:
             try:
@@ -101,12 +110,9 @@ class PH99(Adapter):
                 continue
             self._set_model_parameter(key, value)
 
-
-        timestep_count = (
-            (self._stop_time - self._start_time)
-            // self.model.timestep.to("s").magnitude
-            + 1
-        )
+        timestep_count = (self._stop_time - self._start_time) // self.model.timestep.to(
+            "s"
+        ).magnitude + 1
 
         time_points = create_time_points(
             self._start_time,
@@ -125,10 +131,11 @@ class PH99(Adapter):
             InterpolationType.LINEAR,
         )
         if emms_view.is_empty:
-            raise ParameterEmptyError("PH99 requires ('Emissions', 'CO2') in order to run")
+            raise ParameterEmptyError(
+                "PH99 requires ('Emissions', 'CO2') in order to run"
+            )
         else:
             self.model.emissions = emms_view.get() * emms_units
-
 
     def _set_model_parameter(self, para_name, value):
         try:

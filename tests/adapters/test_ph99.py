@@ -1,5 +1,4 @@
 import datetime as dt
-from copy import deepcopy
 
 import numpy as np
 import pytest
@@ -27,25 +26,16 @@ class TestPH99Adapter(_AdapterTester):
 
         assert (
             in_parameters.get_scalar_view(("b",), ("World",), "ppm / (GtC * yr)").get()
-            == 1.51 * 10**-3
+            == 1.51 * 10 ** -3
         )
-        assert (
-            in_parameters.get_scalar_view(("c1",), ("World",), "ppm").get()
-            == 290
-        )
-        assert (
-            in_parameters.get_scalar_view(("t1",), ("World",), "K").get()
-            == 287.75
-        )
-        assert (
-            in_parameters.get_scalar_view(("start_time",), ("World",), "s").get()
-            == convert_datetime_to_openscm_time(dt.datetime(1750, 1, 1))
-        )
-        assert (
-            in_parameters.get_scalar_view(("stop_time",), ("World",), "s").get()
-            == convert_datetime_to_openscm_time(dt.datetime(2500, 1, 1))
-        )
-
+        assert in_parameters.get_scalar_view(("c1",), ("World",), "ppm").get() == 290
+        assert in_parameters.get_scalar_view(("t1",), ("World",), "K").get() == 287.75
+        assert in_parameters.get_scalar_view(
+            ("start_time",), ("World",), "s"
+        ).get() == convert_datetime_to_openscm_time(dt.datetime(1750, 1, 1))
+        assert in_parameters.get_scalar_view(
+            ("stop_time",), ("World",), "s"
+        ).get() == convert_datetime_to_openscm_time(dt.datetime(2500, 1, 1))
 
     def test_initialize_run_parameters_ph99_specific(self, test_drivers):
         expected = test_drivers["setters"]
@@ -60,17 +50,14 @@ class TestPH99Adapter(_AdapterTester):
         )
         tadapter.initialize_run_parameters()
         np.testing.assert_allclose(
-            tadapter._parameters.get_scalar_view(("c1",), ("World",), "ppm").get(),
-            tc1
+            tadapter._parameters.get_scalar_view(("c1",), ("World",), "ppm").get(), tc1
         )
 
         timestep = tadapter.model.timestep.to("s").magnitude
         assert timestep == in_parameters.get_scalar_view("timestep", "World", "s").get()
         timestep_count = (
-            (expected["stop_time"] - expected["start_time"])
-            // timestep
-            + 1
-        )
+            expected["stop_time"] - expected["start_time"]
+        ) // timestep + 1
         time_points = create_time_points(
             expected["start_time"],
             timestep,
@@ -85,10 +72,7 @@ class TestPH99Adapter(_AdapterTester):
             ParameterType.AVERAGE_TIMESERIES,
             InterpolationType.LINEAR,
         ).get()
-        np.testing.assert_allclose(
-            tadapter.model.emissions,
-            expected_emms
-        )
+        np.testing.assert_allclose(tadapter.model.emissions, expected_emms)
 
     def test_run_ph99_specific(self, test_drivers):
         expected = test_drivers["setters"]
@@ -101,14 +85,11 @@ class TestPH99Adapter(_AdapterTester):
         tadapter.reset()
         tadapter.run()
 
-
         timestep = tadapter.model.timestep.to("s").magnitude
         assert timestep == in_parameters.get_scalar_view("timestep", "World", "s").get()
         timestep_count = (
-            (expected["stop_time"] - expected["start_time"])
-            // timestep
-            + 1
-        )
+            expected["stop_time"] - expected["start_time"]
+        ) // timestep + 1
         time_points = create_time_points(
             expected["start_time"],
             timestep,
@@ -134,10 +115,7 @@ class TestPH99Adapter(_AdapterTester):
         ).get()
 
         np.testing.assert_allclose(
-            expected_emms,
-            resulting_emms,
-            rtol=1e-10,
-            atol=max(expected_emms)*1e-6,
+            expected_emms, resulting_emms, rtol=1e-10, atol=max(expected_emms) * 1e-6
         )
 
         # regression test
