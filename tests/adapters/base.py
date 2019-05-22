@@ -123,11 +123,11 @@ class _AdapterTester:
         )
         assert (
             in_parameters.get_scalar_view("ecs", ("World",), "K").get()
-            == expected["ecs"]
+            == expected["ecs"].magnitude
         )
         assert (
             in_parameters.get_scalar_view(("rf2xco2",), ("World",), "W / m^2").get()
-            == expected["rf2xco2"]
+            == expected["rf2xco2"].magnitude
         )
         np.testing.assert_allclose(
             tadapter._parameters.get_timeseries_view(
@@ -137,7 +137,7 @@ class _AdapterTester:
                 expected["emissions_time_points"],
                 ParameterType.AVERAGE_TIMESERIES,
             ).get(),
-            expected["emissions"],
+            expected["emissions"].magnitude,
             rtol=1e-10,
             atol=1e-15,
         )

@@ -87,6 +87,7 @@ class Adapter(metaclass=ABCMeta):
             self._initialize_model()
             self._initialized = True
         self._initialize_model_input()
+        self._initialized_inputs = True
 
     def _ensure_all_defaults_included_in_parameters(self) -> None:
         """

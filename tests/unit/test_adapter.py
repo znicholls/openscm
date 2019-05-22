@@ -45,8 +45,8 @@ def test_adapter_base_class_run():
     adapter = Adapter(  # pylint: disable=abstract-class-instantiated
         in_parameters, ParameterSet()
     )
-    adapter.initialize_run_parameters()
     adapter.initialize_model_input()
+    adapter.initialize_run_parameters()
     adapter.reset()
     assert adapter._current_time == start_time
     adapter.run()

@@ -26,7 +26,7 @@ class PH99(Adapter):
     foundations, Climatic Change, 41, 303–331, 1999.
     """
 
-    _hc_per_m2_approx = 30 ** 6 * _unit_registry("J / kelvin / m^2")
+    _hc_per_m2_approx = 1.34 * 10 ** 9 * _unit_registry("J / kelvin / m^2")
     _ecs = None
 
     def _initialize_model(self) -> None:
@@ -55,23 +55,10 @@ class PH99(Adapter):
                         name, ("World",), str(value.units)
                     ).set(magnitude)
 
+        self._ecs = self.model.mu * np.log(2) / self.model.alpha
+
     def _initialize_model_input(self) -> None:
-        # do nothing here, leaving all initialisation for when we know the start time
-        # because we have all the views sitting there anyway
-        # in PH99, that's fine
-        # in MAGICC, we want to write emissions in this method. however we can't get emissions until we know our time points which means we have to know our start time, but that is a run parameter... that's ok, we just have to have a minimum start time for MAGICC (or something) and then check that start time in the run call is actually after the internal start time. In this sense MAGICC will be unique
-
-        # Of course the above logic breaks down as soon as you throw step in the mix...
         pass
-
-        # should be able to somehow loop over inputs...
-        # for key, value in self._parameters._root._parameters.items():
-        #     try:
-        #         value._data
-        #     except AttributeError:
-        #         continue
-        #     if isinstance(value._data, np.ndarray):
-        #         self._set_model_parameter(key, value)
 
     def _initialize_run_parameters(self) -> None:
         # TODO: make this easier
@@ -85,13 +72,11 @@ class PH99(Adapter):
                 value._data  # pylint: disable=protected-access
             except AttributeError:
                 continue
-            if isinstance(value._data, np.ndarray):  # pylint: disable=protected-access
-                continue
             self._set_model_parameter(key, value)
 
-        timestep_count = (self._stop_time - self._start_time) // self.model.timestep.to(
-            "s"
-        ).magnitude + 1
+        timestep_count = (self._stop_time - self._start_time) // int(
+            self.model.timestep.to("s").magnitude
+        ) + 1
 
         time_points = create_time_points(
             self._start_time,
@@ -132,16 +117,42 @@ class PH99(Adapter):
 
                 alpha_val = getattr(self.model, "mu") * np.log(2) / modval
                 self.model.alpha = alpha_val.to(self.model.alpha.units)
+                self._parameters.get_scalar_view(
+                    ("alpha",), ("World",), str(self.model.alpha.units)
+                ).get()
+                # TODO: decide how to handle contradiction in a more sophisticated way
+                warnings.warn("Updating ecs also updates alpha")
+                self._parameters.get_writable_scalar_view(
+                    ("alpha",), ("World",), str(self.model.alpha.units)
+                ).set(alpha_val.magnitude)
+
                 return
 
             if para_name == "rf2xco2":
                 # I'm not sure this is correct, check properly when making proper PR
-                mu_val = modval / self._hc_per_m2_approx
-                self.model.mu = mu_val.to(self.model.mu.units)
-                if self._ecs is not None:
-                    # reset alpha too as it depends on mu
-                    alpha_val = getattr(self.model, "mu") * np.log(2) / self._ecs
-                    self.model.alpha = alpha_val.to(self.model.alpha.units)
+                mu_val = (modval / self._hc_per_m2_approx).to(self.model.mu.units)
+                self.model.mu = mu_val
+                self._parameters.get_scalar_view(
+                    ("mu",), ("World",), str(self.model.mu.units)
+                ).get()
+                # TODO: decide how to handle contradiction in a more sophisticated way
+                warnings.warn("Updating rf2xco2 also updates mu")
+                self._parameters.get_writable_scalar_view(
+                    ("mu",), ("World",), str(self.model.mu.units)
+                ).set(mu_val.magnitude)
+
+                # reset alpha too as it depends on mu
+                alpha_val = getattr(self.model, "mu") * np.log(2) / self._ecs
+                self.model.alpha = alpha_val.to(self.model.alpha.units)
+                self._parameters.get_scalar_view(
+                    ("alpha",), ("World",), str(self.model.alpha.units)
+                ).get()
+                # TODO: decide how to handle contradiction in a more sophisticated way
+                warnings.warn("Updating rf2xco2 also updates alpha")
+                self._parameters.get_writable_scalar_view(
+                    ("alpha",), ("World",), str(self.model.alpha.units)
+                ).set(alpha_val.magnitude)
+
                 return
 
             if para_name == "start_time":

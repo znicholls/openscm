@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 import warnings
 from importlib import reload
 
@@ -9,6 +9,7 @@ import openscm.utils
 from openscm.utils import (
     convert_datetime_to_openscm_time,
     convert_openscm_time_to_datetime,
+    round_to_nearest_jan_1,
 )
 
 
@@ -66,12 +67,12 @@ def test_convert_string_to_tuple_str_input(
 @pytest.mark.parametrize(
     "input, expected",
     [
-        (datetime.datetime(1970, 1, 1, 0, 0, 0), 0),
-        (datetime.datetime(1970, 1, 1, 0, 1, 0), 60),
-        (datetime.datetime(1970, 1, 1, 0, 1, 3), 63),
-        (datetime.datetime(1969, 12, 31, 23, 50, 3), -597),
-        (datetime.datetime(1880, 1, 2, 0, 0, 0), -2840054400),
-        (datetime.datetime(2070, 1, 1, 0, 0, 0), 3155760000),
+        (dt.datetime(1970, 1, 1, 0, 0, 0), 0),
+        (dt.datetime(1970, 1, 1, 0, 1, 0), 60),
+        (dt.datetime(1970, 1, 1, 0, 1, 3), 63),
+        (dt.datetime(1969, 12, 31, 23, 50, 3), -597),
+        (dt.datetime(1880, 1, 2, 0, 0, 0), -2840054400),
+        (dt.datetime(2070, 1, 1, 0, 0, 0), 3155760000),
     ],
 )
 def test_convert_datetime_to_openscm_time(input, expected):
@@ -79,3 +80,18 @@ def test_convert_datetime_to_openscm_time(input, expected):
 
     np.testing.assert_allclose(res, expected)
     assert convert_openscm_time_to_datetime(res) == input
+
+
+@pytest.mark.parametrize(
+    "input,expected",
+    [
+        (dt.datetime(1970, 1, 1, 0, 0, 0), dt.datetime(1970, 1, 1, 0, 0, 0)),
+        (dt.datetime(1970, 3, 1, 0, 1, 0), dt.datetime(1970, 1, 1, 0, 0, 0)),
+        (dt.datetime(2030, 6, 16, 23, 59, 59), dt.datetime(2030, 1, 1, 0, 0, 0)),
+        (dt.datetime(2030, 6, 17, 0, 0, 0), dt.datetime(2030, 1, 1, 0, 0, 0)),
+        (dt.datetime(2030, 6, 17, 1, 1, 1), dt.datetime(2031, 1, 1, 0, 0, 0)),
+        (dt.datetime(2030, 8, 19, 3, 1, 3), dt.datetime(2031, 1, 1, 0, 0, 0)),
+    ],
+)
+def test_round_to_nearest_jan_1(input, expected):
+    assert round_to_nearest_jan_1(input) == expected
