@@ -112,46 +112,25 @@ class PH99(Adapter):
             )
         except AttributeError:
             if para_name == "ecs":
-                # I'm not sure this is correct, check properly when making proper PR
                 self._ecs = modval
 
-                alpha_val = getattr(self.model, "mu") * np.log(2) / modval
-                self.model.alpha = alpha_val.to(self.model.alpha.units)
-                self._parameters.get_scalar_view(
-                    ("alpha",), ("World",), str(self.model.alpha.units)
-                ).get()
                 # TODO: decide how to handle contradiction in a more sophisticated way
+                alpha_val = getattr(self.model, "mu") * np.log(2) / modval
                 warnings.warn("Updating ecs also updates alpha")
-                self._parameters.get_writable_scalar_view(
-                    ("alpha",), ("World",), str(self.model.alpha.units)
-                ).set(alpha_val.magnitude)
+                self._update_model_parameter_and_parameterset("alpha", alpha_val)
 
                 return
 
             if para_name == "rf2xco2":
-                # I'm not sure this is correct, check properly when making proper PR
-                mu_val = (modval / self._hc_per_m2_approx).to(self.model.mu.units)
-                self.model.mu = mu_val
-                self._parameters.get_scalar_view(
-                    ("mu",), ("World",), str(self.model.mu.units)
-                ).get()
                 # TODO: decide how to handle contradiction in a more sophisticated way
+                mu_val = (modval / self._hc_per_m2_approx).to(self.model.mu.units)
                 warnings.warn("Updating rf2xco2 also updates mu")
-                self._parameters.get_writable_scalar_view(
-                    ("mu",), ("World",), str(self.model.mu.units)
-                ).set(mu_val.magnitude)
+                self._update_model_parameter_and_parameterset("mu", mu_val)
 
                 # reset alpha too as it depends on mu
                 alpha_val = getattr(self.model, "mu") * np.log(2) / self._ecs
-                self.model.alpha = alpha_val.to(self.model.alpha.units)
-                self._parameters.get_scalar_view(
-                    ("alpha",), ("World",), str(self.model.alpha.units)
-                ).get()
-                # TODO: decide how to handle contradiction in a more sophisticated way
                 warnings.warn("Updating rf2xco2 also updates alpha")
-                self._parameters.get_writable_scalar_view(
-                    ("alpha",), ("World",), str(self.model.alpha.units)
-                ).set(alpha_val.magnitude)
+                self._update_model_parameter_and_parameterset("alpha", alpha_val)
 
                 return
 
@@ -161,6 +140,10 @@ class PH99(Adapter):
 
             # TODO: make this more controlled elsewhere
             warnings.warn("Not using {}".format(para_name))
+
+    def _update_model_parameter_and_parameterset(self, para_name, value):
+        setattr(self.model, para_name, value.to(getattr(self.model, para_name).units))
+        self._parameters.get_writable_scalar_view((para_name,), ("World",), str(value.units)).set(value.magnitude)
 
     def _reset(self) -> None:
         # reset to whatever is in the views of self
