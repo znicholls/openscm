@@ -29,11 +29,11 @@ class TestPH99Adapter(_AdapterTester):
         assert tadapter.model
 
         assert (
-            in_parameters.get_scalar_view(("b",), ("World",), "ppm / (GtC * yr)").get()
+            in_parameters.get_scalar_view(("PH99", "b",), ("World",), "ppm / (GtC * yr)").get()
             == 1.51 * 10 ** -3
         )
-        assert in_parameters.get_scalar_view(("c1",), ("World",), "ppm").get() == 290
-        assert in_parameters.get_scalar_view(("t1",), ("World",), "K").get() == 287.75
+        assert in_parameters.get_scalar_view(("PH99", "c1",), ("World",), "ppm").get() == 290
+        assert in_parameters.get_scalar_view(("PH99", "t1",), ("World",), "K").get() == 287.75
         assert in_parameters.get_scalar_view(
             ("start_time",), ("World",), "s"
         ).get() == convert_datetime_to_openscm_time(dt.datetime(1750, 1, 1))
@@ -41,7 +41,7 @@ class TestPH99Adapter(_AdapterTester):
             ("stop_time",), ("World",), "s"
         ).get() == convert_datetime_to_openscm_time(dt.datetime(2500, 1, 1))
 
-    def test_altering_ecs_rf2xco2_also_alters_alpha_mu(self, test_drivers):
+    def test_openscm_standard_parameters_take_priority(self, test_drivers):
         expected = test_drivers["setters"]
         in_parameters = test_drivers["ParameterSet"]
 
@@ -53,11 +53,11 @@ class TestPH99Adapter(_AdapterTester):
             rf2xco2
         )
         alpha = 1.9 * 10 ** -2
-        in_parameters.get_writable_scalar_view(("alpha",), ("World",), "1/yr").set(
+        in_parameters.get_writable_scalar_view(("PH99", "alpha",), ("World",), "1/yr").set(
             alpha
         )
         mu = 8.9 * 10 ** -2
-        in_parameters.get_writable_scalar_view(("mu",), ("World",), "degC/yr").set(mu)
+        in_parameters.get_writable_scalar_view(("PH99", "mu",), ("World",), "degC/yr").set(mu)
 
         tadapter.initialize_run_parameters()
         # TODO: fix this, at the moment it's a weird race re which parameter overrides
@@ -65,10 +65,32 @@ class TestPH99Adapter(_AdapterTester):
         assert_pint_equal(
             tadapter.model.alpha, tadapter.model.mu * np.log(2) / expected["ecs"]
         )
+
+        expected_mu = _unit_registry.Quantity(rf2xco2, "W/m^2") / tadapter._hc_per_m2_approx
         assert_pint_equal(
             tadapter.model.mu,
-            _unit_registry.Quantity(rf2xco2, "W/m^2") / tadapter._hc_per_m2_approx,
+            expected_mu,
         )
+        np.testing.assert_allclose(
+            in_parameters.get_scalar_view(("PH99", "mu",), ("World",), "degC/yr").get(),
+            expected_mu.to("degC/yr"),
+        )
+
+        # make sure tadapter.model.mu isn't given by value passed into ParameterSet
+        # earlier i.e. openscm parameter takes priority
+        with pytest.raises(AssertionError):
+            assert_pint_equal(
+                tadapter.model.mu,
+                _unit_registry.Quantity(mu, "degC/yr"),
+            )
+
+        with pytest.raises(AssertionError):
+            np.testing.assert_allclose(
+                in_parameters.get_scalar_view(("PH99", "mu",), ("World",), "degC/yr").get(),
+                mu,
+            )
+
+
         np.testing.assert_allclose(
             in_parameters.get_scalar_view(("rf2xco2",), ("World",), "W/m^2").get(),
             rf2xco2,
@@ -106,12 +128,12 @@ class TestPH99Adapter(_AdapterTester):
         tadapter = self.tadapter(in_parameters, out_parameters)
 
         tc1 = 3.8
-        in_parameters.get_writable_scalar_view(("c1",), ("World",), "ppb").set(
+        in_parameters.get_writable_scalar_view(("PH99", "c1",), ("World",), "ppb").set(
             tc1 * 1000
         )
         tadapter.initialize_run_parameters()
         np.testing.assert_allclose(
-            tadapter._parameters.get_scalar_view(("c1",), ("World",), "ppm").get(), tc1
+            tadapter._parameters.get_scalar_view(("PH99", "c1",), ("World",), "ppm").get(), tc1
         )
 
         timestep = tadapter.model.timestep.to("s").magnitude
