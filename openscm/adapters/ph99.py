@@ -86,15 +86,16 @@ class PH99(Adapter):
         )
 
         emms_units = self.model.emissions.units
-        emms_view = self._parameters.get_timeseries_view(
-            ("Emissions", "CO2"),
-            ("World",),
-            str(emms_units),
-            time_points,
-            ParameterType.AVERAGE_TIMESERIES,
-            InterpolationType.LINEAR,
-        )
-        if emms_view.is_empty:
+        try:
+            emms_view = self._parameters.get_timeseries_view(
+                ("Emissions", "CO2"),
+                ("World",),
+                str(emms_units),
+                time_points,
+                ParameterType.AVERAGE_TIMESERIES,
+                InterpolationType.LINEAR,
+            )
+        except ParameterEmptyError:
             raise ParameterEmptyError(
                 "PH99 requires ('Emissions', 'CO2') in order to run"
             )

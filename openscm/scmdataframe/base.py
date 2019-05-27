@@ -493,7 +493,7 @@ class ScmDataFrameBase:  # pylint: disable=too-many-public-methods
                 region_openscm,
                 unit,
                 self.time_points,
-                ParameterType.POINT_TIMESERIES,
+                ParameterType.POINT_TIMESERIES,  # hard-coded!!!
             ).set(vals.values)
 
         for k, v in meta_values.iteritems():

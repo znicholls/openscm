@@ -109,6 +109,7 @@ def convert_core_to_scmdataframe(
 
     for (param_name, region), p_info in root_params.items():
         # All meta values are stored as generic value (AKA no units)
+        # wrong assumption so this whole thing is broken...
         if p_info.parameter_type == ParameterType.GENERIC:
             if region != ("World",):  # pragma: no cover
                 raise ValueError(
