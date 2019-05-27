@@ -143,7 +143,9 @@ class PH99(Adapter):
 
     def _update_model_parameter_and_parameterset(self, para_name, value):
         setattr(self.model, para_name, value.to(getattr(self.model, para_name).units))
-        self._parameters.get_writable_scalar_view((para_name,), ("World",), str(value.units)).set(value.magnitude)
+        self._parameters.get_writable_scalar_view(
+            ("PH99", para_name), ("World",), str(value.units)
+        ).set(value.magnitude)
 
     def _reset(self) -> None:
         # reset to whatever is in the views of self
@@ -163,7 +165,7 @@ class PH99(Adapter):
         try:
             return mappings[name]
         except KeyError:
-            return (name,)
+            return ("PH99", name)
 
     def _run(self) -> None:
         self.model.initialise_timeseries()
