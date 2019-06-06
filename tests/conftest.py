@@ -15,6 +15,8 @@ import pytest
 from openscm.core import time
 from openscm.core.parameters import ParameterType
 from openscm.core.parameterset import ParameterSet
+from openscm.core.time import create_time_points
+from openscm.core.units import _unit_registry
 from openscm.scmdataframe import ScmDataFrame
 
 try:
@@ -435,27 +437,19 @@ def test_run_parameters():
 def test_drivers():
     drivers = ParameterSet()
     setters = {
-        "start_time": 10,
-        "stop_time": 500 * 365 * 24 * 60 * 60,
-        "period_length": 31556926,
+        "start_time": np.datetime64("1810-03-04"),
+        "stop_time": np.datetime64("2450-06-01"),
+        "period_length": np.timedelta64(5000, "D"),
         "emissions_parameter_type": ParameterType.AVERAGE_TIMESERIES,
-        "ecs": 2.5 * _unit_registry("delta_degC"),
-        "rf2xco2": 3.5 * _unit_registry("W/m^2"),
+        "Equilibrium Climate Sensitivity": 2.5 * _unit_registry("delta_degC"),
+        "Radiative Forcing 2xCO2": 3.5 * _unit_registry("W/m^2"),
     }
 
-    drivers.get_writable_scalar_view(("ecs",), ("World",), "K").set(
-        setters["ecs"].magnitude
-    )
-    drivers.get_writable_scalar_view(("rf2xco2",), ("World",), "W / m^2").set(
-        setters["rf2xco2"].magnitude
-    )
+    drivers.scalar(("Equilibrium Climate Sensitivity",), "K", region=("World",)).value = setters["Equilibrium Climate Sensitivity"].magnitude
+    drivers.scalar(("Radiative Forcing 2xCO2",), "W / m^2", region=("World",)).value = setters["Radiative Forcing 2xCO2"].magnitude
 
-    drivers.get_writable_scalar_view(("start_time",), ("World",), "s").set(
-        setters["start_time"]
-    )
-    drivers.get_writable_scalar_view(("stop_time",), ("World",), "s").set(
-        setters["stop_time"]
-    )
+    drivers.generic(("Start Time",), region=("World",)).value = setters["start_time"]
+    drivers.generic(("Stop Time",), region=("World",)).value = setters["stop_time"]
 
     setters["timestep_count"] = (
         setters["stop_time"] - setters["start_time"]
@@ -472,15 +466,15 @@ def test_drivers():
         * np.sin(np.arange(setters["timestep_count"]) * 2 * np.pi / 50)
         * _unit_registry("GtCO2/a")
     )
-    drivers.get_writable_timeseries_view(
+    drivers.timeseries(
         ("Emissions", "CO2"),
-        ("World",),
         str(setters["emissions"].units),
         setters["emissions_time_points"],
-        setters["emissions_parameter_type"],
-        InterpolationType.LINEAR,
-        ExtrapolationType.LINEAR,
-    ).set(setters["emissions"].magnitude)
+        region=("World",),
+        timeseries_type=setters["emissions_parameter_type"],
+        interpolation="linear",
+        extrapolation="linear",
+    ).values = setters["emissions"].magnitude
 
     yield {"ParameterSet": drivers, "setters": setters}
 

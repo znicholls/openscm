@@ -2,6 +2,7 @@
 Adapter for the simple climate model first presented in Petschel-Held Climatic Change 1999.
 """
 import warnings
+from typing import Dict
 
 import numpy as np
 
@@ -28,7 +29,13 @@ class PH99(Adapter):
     """
 
     _hc_per_m2_approx = 1.34 * 10 ** 9 * _unit_registry("J / kelvin / m^2")
+    """Approximate heat capacity per unit area (used to estimate rf2xco2)"""
+
     _ecs = None
+    """Value of equilibrium climate sensitivity"""
+
+    _base_time = np.datetime64("1750-01-01")
+    """Base time. PH99 has no concept of datetimes so we make it up here"""
 
     def _initialize_model(self) -> None:
         """
@@ -48,13 +55,29 @@ class PH99(Adapter):
                     continue
 
                 try:
-                    self._parameters.get_scalar_view(
-                        name, ("World",), str(value.units)
-                    ).get()
+                    self._parameters.scalar(
+                        name, str(value.units)
+                    ).value
                 except ParameterEmptyError:
-                    self._parameters.get_writable_scalar_view(
-                        name, ("World",), str(value.units)
-                    ).set(magnitude)
+                    self._parameters.scalar(
+                        name, str(value.units)
+                    ).value = magnitude
+                if name == ("PH99", "timestep"):
+                    # TODO: handle this better
+                    value = int(value.to("s").magnitude) * value.to("s").units
+                    self._parameters.scalar(
+                        name, str(value.to("s").units)
+                    ).value = int(value.to("s").magnitude)
+                    self.model.timestep = value
+        try:
+            # TODO: handle this better
+            self._parameters.generic(
+                "Start Time"
+            ).value
+        except ParameterEmptyError:
+            self._parameters.generic(
+                "Start Time"
+            ).value = self._base_time + np.timedelta64(int(self.model.time_start.to("s").magnitude), "s")
 
         self._ecs = self.model.mu * np.log(2) / self.model.alpha
 
@@ -70,62 +93,61 @@ class PH99(Adapter):
             self._parameters._root._parameters.items()  # pylint: disable=protected-access
         ):
             try:
-                value._data  # pylint: disable=protected-access
+                value.data  # pylint: disable=protected-access
             except AttributeError:
                 continue
             self._set_model_parameter(key, value)
 
-        timestep_count = (self._stop_time - self._start_time) // int(
-            self.model.timestep.to("s").magnitude
-        ) + 1
+        start_time = self._parameters.generic("Start Time").value
+        stop_time = self._parameters.generic("Stop Time").value
+        timestep_count = int((stop_time - start_time).item().total_seconds() // int(self.model.timestep.to("s").magnitude) + 1)
 
         time_points = create_time_points(
-            self._start_time,
-            self.model.timestep.to("s").magnitude,
+            start_time,
+            np.timedelta64(int(self.model.timestep.to("s").magnitude), "s"),
             timestep_count,
-            ParameterType.AVERAGE_TIMESERIES,
+            timeseries_type="average",
         )
 
         emms_units = self.model.emissions.units
-        emms_view = self._parameters.get_timeseries_view(
-            ("Emissions", "CO2"),
-            ("World",),
-            str(emms_units),
-            time_points,
-            ParameterType.AVERAGE_TIMESERIES,
-            InterpolationType.LINEAR,
-        )
-        if emms_view.is_empty:
+        try:
+            self.model.emissions = self._parameters.timeseries(
+                ("Emissions", "CO2"),
+                str(emms_units),
+                time_points,
+                region=("World",),
+                timeseries_type="average",
+                interpolation="linear",
+            ).values * emms_units
+        except ParameterEmptyError:
             raise ParameterEmptyError(
                 "PH99 requires ('Emissions', 'CO2') in order to run"
             )
-
-        self.model.emissions = emms_view.get() * emms_units
 
     def _set_model_parameter(self, para_name, value):
         try:
             # TODO: make this easier
             modval = _unit_registry.Quantity(
-                value._data, value.info.unit  # pylint: disable=protected-access
+                value.data, value.unit  # pylint: disable=protected-access
             )
             setattr(
                 self.model, para_name, modval.to(getattr(self.model, para_name).units)
             )
         except AttributeError:
-            if para_name == "ecs":
+            if para_name == "Equilibrium Climate Sensitivity":
                 self._ecs = modval
 
                 # TODO: decide how to handle contradiction in a more sophisticated way
                 alpha_val = getattr(self.model, "mu") * np.log(2) / modval
-                warnings.warn("Updating ecs also updates alpha")
+                warnings.warn("Updating Equilibrium Climate Sensitivity also updates alpha")
                 self._update_model_parameter_and_parameterset("alpha", alpha_val)
 
                 return
 
-            if para_name == "rf2xco2":
+            if para_name == "Radiative Forcing 2xCO2":
                 # TODO: decide how to handle contradiction in a more sophisticated way
                 mu_val = (modval / self._hc_per_m2_approx).to(self.model.mu.units)
-                warnings.warn("Updating rf2xco2 also updates mu")
+                warnings.warn("Updating Radiative Forcing 2xCO2 also updates mu")
                 self._update_model_parameter_and_parameterset("mu", mu_val)
 
                 # reset alpha too as it depends on mu
@@ -144,9 +166,9 @@ class PH99(Adapter):
 
     def _update_model_parameter_and_parameterset(self, para_name, value):
         setattr(self.model, para_name, value.to(getattr(self.model, para_name).units))
-        self._parameters.get_writable_scalar_view(
-            ("PH99", para_name), ("World",), str(value.units)
-        ).set(value.magnitude)
+        self._parameters.scalar(
+            ("PH99", para_name), str(value.units), region=("World",)
+        ).value = value.magnitude
 
     def _reset(self) -> None:
         # reset to whatever is in the views of self
@@ -195,31 +217,29 @@ class PH99(Adapter):
                         ptype = ParameterType.POINT_TIMESERIES
 
                     time_points = create_time_points(
-                        self.model.time_start.to("s").magnitude,
-                        self.model.timestep.to("s").magnitude,
+                        self._parameters.generic("Start Time").value,
+                        np.timedelta64(int(self.model.timestep.to("s").magnitude), "s"),
                         len(magnitude),
-                        ptype,
+                        timeseries_type=ptype,
                     )
-                    self._output.get_writable_timeseries_view(
-                        name, ("World",), str(value.units), time_points, ptype
-                    ).set(magnitude)
+                    self._output.timeseries(
+                        name, str(value.units), time_points, region=("World",), timeseries_type=ptype
+                    ).values = magnitude
                 else:
-                    self._output.get_writable_scalar_view(
-                        name, ("World"), str(value.units)
-                    ).set(magnitude)
+                    self._output.scalar(
+                        name, str(value.units), region=("World")
+                    ).value = magnitude
 
         ecs = (self.model.mu * np.log(2) / self.model.alpha).to("K")
-        self._output.get_writable_scalar_view(("ecs",), ("World",), str(ecs.units)).set(
-            ecs.magnitude
-        )
+        self._output.scalar(("ecs",), str(ecs.units), region=("World",)).value = ecs.magnitude
 
         rf2xco2 = self.model.mu * self._hc_per_m2_approx
-        self._output.get_writable_scalar_view(
-            ("rf2xco2",), ("World",), str(rf2xco2.units)
-        ).set(rf2xco2.magnitude)
+        self._output.scalar(
+            ("rf2xco2",), str(rf2xco2.units), region=("World",)
+        ).value = rf2xco2.magnitude
 
     def _step(self) -> None:
         self.model.initialise_timeseries()
         self.model.step()
-        self._current_time = self.model.time_current.to("s").magnitude
+        self._current_time = self._parameters.generic("Start Time").value + np.timedelta64(int(self.model.time_current.to("s").magnitude), "s")
         # TODO: update output

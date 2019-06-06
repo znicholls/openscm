@@ -73,7 +73,7 @@ class PH99Model:  # pylint: disable=too-many-instance-attributes
     @property
     def time_start(self):
         """
-        :obj:`pint.Quantity`: Size of timestep
+        :obj:`pint.Quantity`: Start time
         """
         return self._time_start * self._timestep_units
 
@@ -86,7 +86,7 @@ class PH99Model:  # pylint: disable=too-many-instance-attributes
     @property
     def time_current(self):
         """
-        :obj:`pint.Quantity`: Size of timestep
+        :obj:`pint.Quantity`: Current time
         """
         return self._time_current * self._timestep_units
 
