@@ -6,7 +6,7 @@ from copy import deepcopy
 import numpy as np
 
 from ..errors import OutOfBoundsError, OverwriteError
-from ..units import _unit_registry
+from ..core.units import _unit_registry
 
 
 """

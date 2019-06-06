@@ -17,30 +17,14 @@ class _AdapterTester:
     Adapter to test
     """
 
-    def test_init(self, test_adapter):
+    def test_initialize(self, test_adapter):
         """
         Test the adapter is initiated as intended.
 
         Extra tests can be added for different adapters, depending on whether there
         should be any other behaviour as part of ``__init__`` calls.
         """
-        assert (
-            test_adapter._parameters.get_scalar_view("ecs", ("World",), "K").get() == 3
-        )
-        assert (
-            test_adapter._parameters.get_scalar_view(
-                ("rf2xco2",), ("World",), "W / m^2"
-            ).get()
-            == 4
-        )
-        with pytest.raises(ParameterEmptyError):
-            test_adapter._output.get_timeseries_view(
-                ("Emissions", "CO2"),
-                ("World",),
-                "GtCO2/yr",
-                [1, 10 ** 6],
-                ParameterType.AVERAGE_TIMESERIES,
-            ).get()
+        test_adapter._initialize_model()
 
     def test_shutdown(self, test_adapter):
         """
@@ -159,8 +143,8 @@ class _AdapterTester:
         test_adapter.reset()
         assert test_adapter._current_time == test_run_parameters.start_time
         try:
-            new_time = tadapter.step()
-            assert new_time > start_time
+            new_time = test_adapter.step()
+            assert new_time > test_run_parameters.start_time
         except NotImplementedError:
             pytest.skip("Step unavailable for {}".format(type(tadapter)))
 
