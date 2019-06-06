@@ -2,7 +2,6 @@
 Adapter for the simple climate model first presented in Petschel-Held Climatic Change 1999.
 """
 import warnings
-from typing import Dict
 
 import numpy as np
 

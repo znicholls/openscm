@@ -1,4 +1,3 @@
-import datetime as dt
 import re
 
 import numpy as np
@@ -9,13 +8,9 @@ from conftest import assert_pint_equal
 from openscm.adapters.ph99 import PH99
 from openscm.core import ParameterSet
 from openscm.core.parameters import ParameterType
-
-# from openscm.core.timeseries_converter import InterpolationType, create_time_points
-from openscm.core.time import InterpolationType, create_time_points
+from openscm.core.time import create_time_points
 from openscm.core.units import _unit_registry
 from openscm.errors import ParameterEmptyError
-
-# from openscm.utils import convert_datetime_to_openscm_time
 
 
 class TestPH99Adapter(_AdapterTester):

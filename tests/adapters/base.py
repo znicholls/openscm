@@ -1,7 +1,8 @@
 from abc import ABCMeta, abstractmethod
 
+import pytest
 
-class _AdapterTester:
+class _AdapterTester(metaclass=ABCMeta):
     """
     Base class for adapter testing.
 
@@ -146,7 +147,7 @@ class _AdapterTester:
             new_time = test_adapter.step()
             assert new_time > test_run_parameters.start_time
         except NotImplementedError:
-            pytest.skip("Step unavailable for {}".format(type(tadapter)))
+            pytest.skip("Step unavailable for {}".format(type(test_adapter)))
 
     # TODO: put this sort of test in issue about run function tests
     # def test_initialize_run_parameters_non_model_parameter(self, test_adapter):

@@ -1,7 +1,6 @@
 """
 Module including all model adapters shipped with OpenSCM.
 """
-import datetime as dt
 from abc import ABCMeta, abstractmethod
 from typing import Dict, Optional
 
