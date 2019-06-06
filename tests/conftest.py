@@ -445,8 +445,12 @@ def test_drivers():
         "Radiative Forcing 2xCO2": 3.5 * _unit_registry("W/m^2"),
     }
 
-    drivers.scalar(("Equilibrium Climate Sensitivity",), "K", region=("World",)).value = setters["Equilibrium Climate Sensitivity"].magnitude
-    drivers.scalar(("Radiative Forcing 2xCO2",), "W / m^2", region=("World",)).value = setters["Radiative Forcing 2xCO2"].magnitude
+    drivers.scalar(
+        ("Equilibrium Climate Sensitivity",), "K", region=("World",)
+    ).value = setters["Equilibrium Climate Sensitivity"].magnitude
+    drivers.scalar(
+        ("Radiative Forcing 2xCO2",), "W / m^2", region=("World",)
+    ).value = setters["Radiative Forcing 2xCO2"].magnitude
 
     drivers.generic(("Start Time",), region=("World",)).value = setters["start_time"]
     drivers.generic(("Stop Time",), region=("World",)).value = setters["stop_time"]

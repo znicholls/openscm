@@ -6,13 +6,14 @@ from typing import Dict
 
 import numpy as np
 
-from . import Adapter
-from ..errors import ParameterEmptyError
-from ..models import PH99Model
 from ..core.parameters import ParameterType
 from ..core.time import create_time_points
+
 # from ..timeseries_converter import InterpolationType, create_time_points
 from ..core.units import _unit_registry
+from ..errors import ParameterEmptyError
+from ..models import PH99Model
+from . import Adapter
 
 
 class PH99(Adapter):
@@ -55,29 +56,24 @@ class PH99(Adapter):
                     continue
 
                 try:
-                    self._parameters.scalar(
-                        name, str(value.units)
-                    ).value
+                    self._parameters.scalar(name, str(value.units)).value
                 except ParameterEmptyError:
-                    self._parameters.scalar(
-                        name, str(value.units)
-                    ).value = magnitude
+                    self._parameters.scalar(name, str(value.units)).value = magnitude
                 if name == ("PH99", "timestep"):
                     # TODO: handle this better
                     value = int(value.to("s").magnitude) * value.to("s").units
-                    self._parameters.scalar(
-                        name, str(value.to("s").units)
-                    ).value = int(value.to("s").magnitude)
+                    self._parameters.scalar(name, str(value.to("s").units)).value = int(
+                        value.to("s").magnitude
+                    )
                     self.model.timestep = value
         try:
             # TODO: handle this better
-            self._parameters.generic(
-                "Start Time"
-            ).value
+            self._parameters.generic("Start Time").value
         except ParameterEmptyError:
-            self._parameters.generic(
-                "Start Time"
-            ).value = self._base_time + np.timedelta64(int(self.model.time_start.to("s").magnitude), "s")
+            self._parameters.generic("Start Time").value = (
+                self._base_time
+                + np.timedelta64(int(self.model.time_start.to("s").magnitude), "s")
+            )
 
         self._ecs = self.model.mu * np.log(2) / self.model.alpha
 
@@ -100,7 +96,11 @@ class PH99(Adapter):
 
         start_time = self._parameters.generic("Start Time").value
         stop_time = self._parameters.generic("Stop Time").value
-        timestep_count = int((stop_time - start_time).item().total_seconds() // int(self.model.timestep.to("s").magnitude) + 1)
+        timestep_count = int(
+            (stop_time - start_time).item().total_seconds()
+            // int(self.model.timestep.to("s").magnitude)
+            + 1
+        )
 
         time_points = create_time_points(
             start_time,
@@ -111,14 +111,17 @@ class PH99(Adapter):
 
         emms_units = self.model.emissions.units
         try:
-            self.model.emissions = self._parameters.timeseries(
-                ("Emissions", "CO2"),
-                str(emms_units),
-                time_points,
-                region=("World",),
-                timeseries_type="average",
-                interpolation="linear",
-            ).values * emms_units
+            self.model.emissions = (
+                self._parameters.timeseries(
+                    ("Emissions", "CO2"),
+                    str(emms_units),
+                    time_points,
+                    region=("World",),
+                    timeseries_type="average",
+                    interpolation="linear",
+                ).values
+                * emms_units
+            )
         except ParameterEmptyError:
             raise ParameterEmptyError(
                 "PH99 requires ('Emissions', 'CO2') in order to run"
@@ -139,7 +142,9 @@ class PH99(Adapter):
 
                 # TODO: decide how to handle contradiction in a more sophisticated way
                 alpha_val = getattr(self.model, "mu") * np.log(2) / modval
-                warnings.warn("Updating Equilibrium Climate Sensitivity also updates alpha")
+                warnings.warn(
+                    "Updating Equilibrium Climate Sensitivity also updates alpha"
+                )
                 self._update_model_parameter_and_parameterset("alpha", alpha_val)
 
                 return
@@ -223,7 +228,11 @@ class PH99(Adapter):
                         timeseries_type=ptype,
                     )
                     self._output.timeseries(
-                        name, str(value.units), time_points, region=("World",), timeseries_type=ptype
+                        name,
+                        str(value.units),
+                        time_points,
+                        region=("World",),
+                        timeseries_type=ptype,
                     ).values = magnitude
                 else:
                     self._output.scalar(
@@ -231,7 +240,9 @@ class PH99(Adapter):
                     ).value = magnitude
 
         ecs = (self.model.mu * np.log(2) / self.model.alpha).to("K")
-        self._output.scalar(("ecs",), str(ecs.units), region=("World",)).value = ecs.magnitude
+        self._output.scalar(
+            ("ecs",), str(ecs.units), region=("World",)
+        ).value = ecs.magnitude
 
         rf2xco2 = self.model.mu * self._hc_per_m2_approx
         self._output.scalar(
@@ -241,5 +252,7 @@ class PH99(Adapter):
     def _step(self) -> None:
         self.model.initialise_timeseries()
         self.model.step()
-        self._current_time = self._parameters.generic("Start Time").value + np.timedelta64(int(self.model.time_current.to("s").magnitude), "s")
+        self._current_time = self._parameters.generic(
+            "Start Time"
+        ).value + np.timedelta64(int(self.model.time_current.to("s").magnitude), "s")
         # TODO: update output

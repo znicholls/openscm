@@ -10,7 +10,6 @@ import numpy as np
 from ..core.parameterset import ParameterSet
 from ..errors import AdapterNeedsModuleError
 
-
 _loaded_adapters: Dict[str, type] = {}
 
 

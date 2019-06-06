@@ -5,9 +5,9 @@ import numpy as np
 import pytest
 from conftest import assert_pint_equal
 
+from openscm.core.units import _unit_registry
 from openscm.errors import OutOfBoundsError, OverwriteError
 from openscm.models import PH99Model
-from openscm.core.units import _unit_registry
 
 yr = 1 * _unit_registry.year
 ONE_YEAR = yr.to("s")

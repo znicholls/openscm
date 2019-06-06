@@ -8,11 +8,13 @@ from conftest import assert_pint_equal
 
 from openscm.adapters.ph99 import PH99
 from openscm.core import ParameterSet
-from openscm.errors import ParameterEmptyError
 from openscm.core.parameters import ParameterType
+
 # from openscm.core.timeseries_converter import InterpolationType, create_time_points
 from openscm.core.time import InterpolationType, create_time_points
 from openscm.core.units import _unit_registry
+from openscm.errors import ParameterEmptyError
+
 # from openscm.utils import convert_datetime_to_openscm_time
 
 
@@ -36,14 +38,14 @@ class TestPH99Adapter(_AdapterTester):
             == 1.51 * 10 ** -3
         )
         assert (
-            in_parameters.scalar(("PH99", "c1"), "ppm", region=("World",)).value
-            == 290
+            in_parameters.scalar(("PH99", "c1"), "ppm", region=("World",)).value == 290
         )
         assert (
-            in_parameters.scalar(("PH99", "t1"), "K", region=("World",)).value
-            == 287.75
+            in_parameters.scalar(("PH99", "t1"), "K", region=("World",)).value == 287.75
         )
-        assert in_parameters.generic(("Start Time",), region=("World",)).value == np.datetime64("1750-01-01")
+        assert in_parameters.generic(
+            ("Start Time",), region=("World",)
+        ).value == np.datetime64("1750-01-01")
 
     def test_openscm_standard_parameters_take_priority(self, test_drivers):
         expected = test_drivers["setters"]
@@ -53,22 +55,21 @@ class TestPH99Adapter(_AdapterTester):
         tadapter = self.tadapter(in_parameters, out_parameters)
 
         rf2xco2 = 3.5
-        in_parameters.scalar(("Radiative Forcing 2xCO2",), "W/m^2", region=("World",)).value = rf2xco2
+        in_parameters.scalar(
+            ("Radiative Forcing 2xCO2",), "W/m^2", region=("World",)
+        ).value = rf2xco2
 
         mu = 8.9 * 10 ** -2
-        in_parameters.scalar(
-            ("PH99", "mu"), "degC/yr", region=("World",)
-        ).value = mu
+        in_parameters.scalar(("PH99", "mu"), "degC/yr", region=("World",)).value = mu
 
         alpha = 1.9 * 10 ** -2
-        in_parameters.scalar(
-            ("PH99", "alpha"), "1/yr", region=("World",)
-        ).value  = alpha
+        in_parameters.scalar(("PH99", "alpha"), "1/yr", region=("World",)).value = alpha
 
         tadapter.initialize_run_parameters()
 
         assert_pint_equal(
-            tadapter.model.alpha, tadapter.model.mu * np.log(2) / expected["Equilibrium Climate Sensitivity"]
+            tadapter.model.alpha,
+            tadapter.model.mu * np.log(2) / expected["Equilibrium Climate Sensitivity"],
         )
 
         expected_mu = (
@@ -94,22 +95,29 @@ class TestPH99Adapter(_AdapterTester):
             )
 
         np.testing.assert_allclose(
-            in_parameters.scalar(("Radiative Forcing 2xCO2",), "W/m^2", region=("World",)).value,
+            in_parameters.scalar(
+                ("Radiative Forcing 2xCO2",), "W/m^2", region=("World",)
+            ).value,
             rf2xco2,
         )
 
-        in_parameters.scalar(("Radiative Forcing 2xCO2",), "W/m^2", region=("World",)).value = 2 * rf2xco2
+        in_parameters.scalar(
+            ("Radiative Forcing 2xCO2",), "W/m^2", region=("World",)
+        ).value = (2 * rf2xco2)
         tadapter.initialize_run_parameters()
 
         assert_pint_equal(
-            tadapter.model.alpha, tadapter.model.mu * np.log(2) / expected["Equilibrium Climate Sensitivity"]
+            tadapter.model.alpha,
+            tadapter.model.mu * np.log(2) / expected["Equilibrium Climate Sensitivity"],
         )
         assert_pint_equal(
             tadapter.model.mu,
             _unit_registry.Quantity(2 * rf2xco2, "W/m^2") / tadapter._hc_per_m2_approx,
         )
         np.testing.assert_allclose(
-            in_parameters.scalar(("Radiative Forcing 2xCO2",), "W/m^2", region=("World",)).value,
+            in_parameters.scalar(
+                ("Radiative Forcing 2xCO2",), "W/m^2", region=("World",)
+            ).value,
             2 * rf2xco2,
         )
 
@@ -121,19 +129,20 @@ class TestPH99Adapter(_AdapterTester):
         )
 
     def test_initialize_run_parameters(self, test_adapter, test_run_parameters):
-        test_adapter._parameters.generic("Start Time").value = test_run_parameters.start_time
-        test_adapter._parameters.generic("Stop Time").value = test_run_parameters.stop_time
+        test_adapter._parameters.generic(
+            "Start Time"
+        ).value = test_run_parameters.start_time
+        test_adapter._parameters.generic(
+            "Stop Time"
+        ).value = test_run_parameters.stop_time
         tp = create_time_points(  # TODO: replace by simpler function
             test_run_parameters.start_time,
-            np.timedelta64(365*50, "D"),
+            np.timedelta64(365 * 50, "D"),
             3,
             timeseries_type="average",
         )
         test_adapter._parameters.timeseries(
-            ("Emissions", "CO2"), 
-            "GtC/day", 
-            tp, 
-            timeseries_type="average",
+            ("Emissions", "CO2"), "GtC/day", tp, timeseries_type="average"
         ).values = np.array([10, 20, 21])
         super().test_initialize_run_parameters(test_adapter, test_run_parameters)
 
@@ -145,13 +154,13 @@ class TestPH99Adapter(_AdapterTester):
         tadapter = self.tadapter(in_parameters, out_parameters)
 
         tc1 = 3.8
-        in_parameters.scalar(("PH99", "c1"), "ppb", region=("World",)).value = tc1 * 1000
+        in_parameters.scalar(("PH99", "c1"), "ppb", region=("World",)).value = (
+            tc1 * 1000
+        )
 
         tadapter.initialize_run_parameters()
         np.testing.assert_allclose(
-            tadapter._parameters.scalar(
-                ("PH99", "c1"), "ppm", region=("World",)
-            ).value,
+            tadapter._parameters.scalar(("PH99", "c1"), "ppm", region=("World",)).value,
             tc1,
         )
 
@@ -160,10 +169,13 @@ class TestPH99Adapter(_AdapterTester):
             timestep
             == in_parameters.scalar(("PH99", "timestep"), "s", region="World").value
         )
-        timestep_count = int(
-            (expected["stop_time"] - expected["start_time"]).item().total_seconds()
-            // timestep
-        ) + 1
+        timestep_count = (
+            int(
+                (expected["stop_time"] - expected["start_time"]).item().total_seconds()
+                // timestep
+            )
+            + 1
+        )
         time_points = create_time_points(
             expected["start_time"],
             np.timedelta64(int(timestep), "s"),
@@ -188,11 +200,11 @@ class TestPH99Adapter(_AdapterTester):
         test_adapter._parameters.generic("Start Time").value = start_time
         test_adapter._parameters.generic("Stop Time").value = stop_time
         timestep = np.timedelta64(30, "D")
-        test_adapter._parameters.scalar(("PH99", "timestep"), "s").value = timestep.item().total_seconds()
+        test_adapter._parameters.scalar(
+            ("PH99", "timestep"), "s"
+        ).value = timestep.item().total_seconds()
 
-        npoints = (
-            stop_time - start_time
-        ) // timestep + 1
+        npoints = (stop_time - start_time) // timestep + 1
         time_points_for_averages = create_time_points(
             start_time,
             stop_time - start_time,
@@ -218,14 +230,14 @@ class TestPH99Adapter(_AdapterTester):
         tadapter.run()
 
         timestep = tadapter.model.timestep.to("s").magnitude
-        assert (
-            timestep
-            == in_parameters.scalar(("PH99", "timestep"), "s").value
+        assert timestep == in_parameters.scalar(("PH99", "timestep"), "s").value
+        timestep_count = (
+            int(
+                (expected["stop_time"] - expected["start_time"]).item().total_seconds()
+                // timestep
+            )
+            + 1
         )
-        timestep_count = int(
-            (expected["stop_time"] - expected["start_time"]).item().total_seconds()
-            // timestep
-        ) + 1
         time_points = create_time_points(
             expected["start_time"],
             np.timedelta64(int(timestep), "s"),
@@ -266,12 +278,18 @@ class TestPH99Adapter(_AdapterTester):
             timeseries_type="point",
         ).values
         np.testing.assert_allclose(
-            temp_2017_2018, np.array([0.5240462684400263, 0.5296034389009026]), rtol=1e-5
+            temp_2017_2018,
+            np.array([0.5240462684400263, 0.5296034389009026]),
+            rtol=1e-5,
         )
 
     def test_run_no_emissions_error(self, test_adapter):
-        test_adapter._parameters.generic("Start Time").value = np.datetime64("2010-01-01")
-        test_adapter._parameters.generic("Stop Time").value = np.datetime64("2013-01-01")
+        test_adapter._parameters.generic("Start Time").value = np.datetime64(
+            "2010-01-01"
+        )
+        test_adapter._parameters.generic("Stop Time").value = np.datetime64(
+            "2013-01-01"
+        )
         test_adapter.initialize_model_input()
         error_msg = re.escape("PH99 requires ('Emissions', 'CO2') in order to run")
         with pytest.raises(ParameterEmptyError, match=error_msg):
@@ -290,9 +308,9 @@ class TestPH99Adapter(_AdapterTester):
         parameters.scalar(
             "Equilibrium Climate Sensitivity", "delta_degC"
         ).value = ecs_magnitude
-        parameters.scalar(
-            ("PH99", "alpha"), "1/yr"
-        ).value = 3.9 * 10 ** -2  # ensure openscm standard parameters take precedence
+        parameters.scalar(("PH99", "alpha"), "1/yr").value = (
+            3.9 * 10 ** -2
+        )  # ensure openscm standard parameters take precedence
 
         rf2xco2_magnitude = 4.012
         parameters.scalar(

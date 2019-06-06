@@ -148,7 +148,6 @@ class _AdapterTester:
         except NotImplementedError:
             pytest.skip("Step unavailable for {}".format(type(tadapter)))
 
-
     # TODO: put this sort of test in issue about run function tests
     # def test_initialize_run_parameters_non_model_parameter(self, test_adapter):
     #     tname = ("junk",)
@@ -159,7 +158,6 @@ class _AdapterTester:
 
     # with pytest.raises(NotAnScmParameterError, match=error_msg):
     #     test_adapter.initialize_run_parameters()
-
 
     @abstractmethod
     def test_openscm_standard_parameters_handling(self):

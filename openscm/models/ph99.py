@@ -5,8 +5,8 @@ from copy import deepcopy
 
 import numpy as np
 
-from ..errors import OutOfBoundsError, OverwriteError
 from ..core.units import _unit_registry
+from ..errors import OutOfBoundsError, OverwriteError
 
 
 """
