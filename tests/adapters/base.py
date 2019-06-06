@@ -2,6 +2,7 @@ from abc import ABCMeta, abstractmethod
 
 import pytest
 
+
 class _AdapterTester(metaclass=ABCMeta):
     """
     Base class for adapter testing.

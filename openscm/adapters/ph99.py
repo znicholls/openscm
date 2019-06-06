@@ -7,8 +7,6 @@ import numpy as np
 
 from ..core.parameters import ParameterType
 from ..core.time import create_time_points
-
-# from ..timeseries_converter import InterpolationType, create_time_points
 from ..core.units import _unit_registry
 from ..errors import ParameterEmptyError
 from ..models import PH99Model
