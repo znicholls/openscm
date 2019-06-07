@@ -29,11 +29,13 @@ class PH99(Adapter):
     _hc_per_m2_approx = 1.34 * 10 ** 9 * _unit_registry("J / kelvin / m^2")
     """Approximate heat capacity per unit area (used to estimate rf2xco2)"""
 
-    _ecs = None
-    """Value of equilibrium climate sensitivity"""
-
     _base_time = np.datetime64("1750-01-01")
     """Base time. PH99 has no concept of datetimes so we make it up here"""
+
+    @property
+    def _ecs(self):
+        return self._parameters.scalar("Equilibrium Climate Sensitivity", "delta_degC").value * _unit_registry("delta_degC")
+
 
     def _initialize_model(self) -> None:
         """
@@ -48,31 +50,52 @@ class PH99(Adapter):
                     continue
 
                 name = self._get_openscm_name(att)
-                magnitude = value.magnitude
-                if isinstance(magnitude, np.ndarray):
+                if isinstance(value.magnitude, np.ndarray):
                     continue
+                self._set_default_value(name, value)
 
-                try:
-                    self._parameters.scalar(name, str(value.units)).value
-                except ParameterEmptyError:
-                    self._parameters.scalar(name, str(value.units)).value = magnitude
-                if name == ("PH99", "timestep"):
-                    # TODO: handle this better
-                    value = int(value.to("s").magnitude) * value.to("s").units
-                    self._parameters.scalar(name, str(value.to("s").units)).value = int(
-                        value.to("s").magnitude
-                    )
-                    self.model.timestep = value
-        try:
-            # TODO: handle this better
-            self._parameters.generic("Start Time").value
-        except ParameterEmptyError:
-            self._parameters.generic("Start Time").value = (
+        self._initialize_openscm_standard_parameters()
+
+    def _set_default_value(self, name, value):
+        if name == ("PH99", "timestep"):
+            units = "s"
+            mag = int(value.to(units).magnitude)
+            self._parameters.scalar(name, "s").value = int(mag)
+            if int(self.model.timestep.magnitude) != int(mag):
+                warnings.warn("Rounding model timestep to nearest integer")
+                self.model.timestep = mag * _unit_registry("s")  # ensure we use integer steps to be OpenSCM compatible
+            return
+
+        p = self._parameters.scalar(name, str(value.units))
+        if p.empty:
+            p.value = value.magnitude
+
+    def _initialize_openscm_standard_parameters(self):
+        start_time = self._parameters.generic("Start Time")
+        if start_time.empty:
+            start_time.value = (
                 self._base_time
                 + np.timedelta64(int(self.model.time_start.to("s").magnitude), "s")
             )
 
-        self._ecs = self.model.mu * np.log(2) / self.model.alpha
+        ecs = self._parameters.scalar(
+            "Equilibrium Climate Sensitivity",
+            "delta_degC"
+        )
+        if ecs.empty:
+            ecs.value = (self.model.mu * np.log(2) / self.model.alpha).to("delta_degC").magnitude
+        else:
+            self._set_model_parameter("Equilibrium Climate Sensitivity", ecs.value * _unit_registry("delta_degC"))
+
+        rf2xco2 = self._parameters.scalar(
+            "Radiative Forcing 2xCO2",
+            "W/m^2"
+        )
+        if rf2xco2.empty:
+            rf2xco2.value = (self.model.mu * self._hc_per_m2_approx).to("W/m^2").magnitude
+        else:
+            self._set_model_parameter("Radiative Forcing 2xCO2", rf2xco2.value * _unit_registry("W/m^2"))
+
 
     def _initialize_model_input(self) -> None:
         pass
@@ -89,7 +112,13 @@ class PH99(Adapter):
                 value.data  # pylint: disable=protected-access
             except AttributeError:
                 continue
-            self._set_model_parameter(key, value)
+            if key == "Start Time":
+                self.model.time_start = (value.data - self._base_time).item().total_seconds() * _unit_registry("s")
+                continue
+            if key == "Stop Time":
+                continue  # set below
+
+            self._set_model_parameter(key, value.data * _unit_registry(value.unit))
 
         start_time = self._parameters.generic("Start Time").value
         stop_time = self._parameters.generic("Stop Time").value
@@ -125,44 +154,36 @@ class PH99(Adapter):
             )
 
     def _set_model_parameter(self, para_name, value):
+        if para_name == "Equilibrium Climate Sensitivity":
+            # TODO: decide how to handle contradiction in a more sophisticated way
+            alpha_val = getattr(self.model, "mu") * np.log(2) / value
+            warnings.warn(
+                "Updating Equilibrium Climate Sensitivity also updates alpha"
+            )
+            self._update_model_parameter_and_parameterset("alpha", alpha_val)
+
+            return
+
+        if para_name == "Radiative Forcing 2xCO2":
+            # TODO: decide how to handle contradiction in a more sophisticated way
+            mu_val = (value / self._hc_per_m2_approx).to(self.model.mu.units)
+            warnings.warn("Updating Radiative Forcing 2xCO2 also updates mu")
+            self._update_model_parameter_and_parameterset("mu", mu_val)
+
+            # reset alpha too as it depends on mu
+            alpha_val = getattr(self.model, "mu") * np.log(2) / self._ecs
+            warnings.warn("Updating rf2xco2 also updates alpha")
+            self._update_model_parameter_and_parameterset("alpha", alpha_val)
+
+            return
+
         try:
             # TODO: make this easier
-            modval = _unit_registry.Quantity(
-                value.data, value.unit  # pylint: disable=protected-access
-            )
+            value = value
             setattr(
-                self.model, para_name, modval.to(getattr(self.model, para_name).units)
+                self.model, para_name, value.to(getattr(self.model, para_name).units)
             )
         except AttributeError:
-            if para_name == "Equilibrium Climate Sensitivity":
-                self._ecs = modval
-
-                # TODO: decide how to handle contradiction in a more sophisticated way
-                alpha_val = getattr(self.model, "mu") * np.log(2) / modval
-                warnings.warn(
-                    "Updating Equilibrium Climate Sensitivity also updates alpha"
-                )
-                self._update_model_parameter_and_parameterset("alpha", alpha_val)
-
-                return
-
-            if para_name == "Radiative Forcing 2xCO2":
-                # TODO: decide how to handle contradiction in a more sophisticated way
-                mu_val = (modval / self._hc_per_m2_approx).to(self.model.mu.units)
-                warnings.warn("Updating Radiative Forcing 2xCO2 also updates mu")
-                self._update_model_parameter_and_parameterset("mu", mu_val)
-
-                # reset alpha too as it depends on mu
-                alpha_val = getattr(self.model, "mu") * np.log(2) / self._ecs
-                warnings.warn("Updating rf2xco2 also updates alpha")
-                self._update_model_parameter_and_parameterset("alpha", alpha_val)
-
-                return
-
-            if para_name == "start_time":
-                self.model.time_start = modval.to(self.model.time_start.units)
-                return
-
             # TODO: make this more controlled elsewhere
             warnings.warn("Not using {}".format(para_name))
 
