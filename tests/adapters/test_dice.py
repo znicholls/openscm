@@ -79,6 +79,7 @@ class TestMyAdapter(_AdapterTester):
         super().test_initialize_run_parameters(test_adapter, test_run_parameters)
         assert test_adapter._values.tatm0.value == 0.8
         assert test_adapter._parameters.timeseries(("Pool", "CO2", "Atmosphere"), "GtC", np.array(["2010-01-01", "2011-01-01", "2012-01-01"], dtype="datetime64[s]")).empty
+        assert not test_adapter._parameters.timeseries(("Emissions", "CO2"), "GtC/yr", np.array(["2010-01-01", "2011-01-01", "2012-01-01"], dtype="datetime64[s]"), timeseries_type="average").empty
 
     def test_run(self, test_adapter, test_run_parameters):
         super().test_run(test_adapter, test_run_parameters)

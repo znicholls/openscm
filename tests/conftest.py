@@ -433,56 +433,6 @@ def test_run_parameters():
     )
 
 
-@pytest.fixture(scope="function")
-def test_drivers():
-    drivers = ParameterSet()
-    setters = {
-        "start_time": np.datetime64("1810-03-04"),
-        "stop_time": np.datetime64("2450-06-01"),
-        "period_length": np.timedelta64(5000, "D"),
-        "emissions_parameter_type": ParameterType.AVERAGE_TIMESERIES,
-        "Equilibrium Climate Sensitivity": 2.5 * _unit_registry("delta_degC"),
-        "Radiative Forcing 2xCO2": 3.5 * _unit_registry("W/m^2"),
-    }
-
-    drivers.scalar(
-        ("Equilibrium Climate Sensitivity",), "K", region=("World",)
-    ).value = setters["Equilibrium Climate Sensitivity"].magnitude
-    drivers.scalar(
-        ("Radiative Forcing 2xCO2",), "W / m^2", region=("World",)
-    ).value = setters["Radiative Forcing 2xCO2"].magnitude
-
-    drivers.generic(("Start Time",), region=("World",)).value = setters["start_time"]
-    drivers.generic(("Stop Time",), region=("World",)).value = setters["stop_time"]
-
-    setters["timestep_count"] = (
-        setters["stop_time"] - setters["start_time"]
-    ) // setters["period_length"] + 1
-    setters["emissions_time_points"] = create_time_points(
-        setters["start_time"],
-        setters["period_length"],
-        setters["timestep_count"],
-        setters["emissions_parameter_type"],
-    )
-
-    setters["emissions"] = (
-        np.linspace(0, 40, setters["timestep_count"])
-        * np.sin(np.arange(setters["timestep_count"]) * 2 * np.pi / 50)
-        * _unit_registry("GtCO2/a")
-    )
-    drivers.timeseries(
-        ("Emissions", "CO2"),
-        str(setters["emissions"].units),
-        setters["emissions_time_points"],
-        region=("World",),
-        timeseries_type=setters["emissions_parameter_type"],
-        interpolation="linear",
-        extrapolation="linear",
-    ).values = setters["emissions"].magnitude
-
-    yield {"ParameterSet": drivers, "setters": setters}
-
-
 possible_source_values = [[1, 5, 3, 5, 7, 3, 2, 9]]
 
 possible_target_values = [  # TODO: Use years here after create_time_points has been fixed
