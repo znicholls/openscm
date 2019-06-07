@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import pytest
 from base import _AdapterTester
 
 from openscm.adapters.dice import DICE, YEAR
@@ -62,6 +63,32 @@ def _run_and_compare(test_adapter, filename):
 class TestMyAdapter(_AdapterTester):
     tadapter = DICE
 
+    def test_initialize(self, test_adapter):
+        super().test_initialize(test_adapter)
+        assert test_adapter._values is not None
+        assert test_adapter._values.c3.value == 0.09175
+        assert test_adapter._parameters.scalar(("DICE", "tatm0"), "delta_degC").value == 0.8
+
+    def test_shutdown(self, test_adapter):
+        super().test_shutdown(test_adapter)
+
+    def test_initialize_model_input(self, test_adapter):
+        super().test_initialize_model_input(test_adapter)
+
+    def test_initialize_run_parameters(self, test_adapter, test_run_parameters):
+        super().test_initialize_run_parameters(test_adapter, test_run_parameters)
+        assert test_adapter._values.tatm0.value == 0.8
+        assert test_adapter._parameters.timeseries(("Pool", "CO2", "Atmosphere"), "GtC", np.array(["2010-01-01", "2011-01-01", "2012-01-01"], dtype="datetime64[s]")).empty
+
+    def test_run(self, test_adapter, test_run_parameters):
+        super().test_run(test_adapter, test_run_parameters)
+
+    def test_step(self, test_adapter, test_run_parameters):
+        super().test_step(test_adapter, test_run_parameters)
+
+    def test_openscm_standard_parameters_handling(self):
+        pytest.skip("implement once parameter usage can be checked")
+
     def test_match_original(self, test_adapter):
         _run_and_compare(test_adapter, "tests/data/dice/original_results.csv")
 
@@ -91,6 +118,3 @@ class TestMyAdapter(_AdapterTester):
             time_points_for_averages,
             timeseries_type="average",
         ).values = np.zeros(npoints)
-
-    def test_openscm_standard_parameters_handling(self):
-        pass  # TODO: implement once parameter usage can be checked
