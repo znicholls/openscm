@@ -29,7 +29,7 @@ def test_adapter_registry_unknown_model():
         load_adapter("unknown")
 
 
-def test_adapter_registry_import_error_dice():
+def test_adapter_registry_import_error():
     error_msg = re.escape(
         "To run 'DICE' you need to install additional dependencies. Please "
         "install them using `pip install openscm[model-DICE]`."
@@ -37,13 +37,3 @@ def test_adapter_registry_import_error_dice():
     with patch.dict(sys.modules, {"openscm.adapters.dice": None}):
         with pytest.raises(AdapterNeedsModuleError, match=error_msg):
             load_adapter("DICE")
-
-
-def test_adapter_registry_import_error_ph99():
-    error_msg = re.escape(
-        "To run 'PH99' you need to install additional dependencies. Please "
-        "install them using `pip install openscm[model-PH99]`."
-    )
-    with patch.dict(sys.modules, {"openscm.adapters.ph99": None}):
-        with pytest.raises(AdapterNeedsModuleError, match=error_msg):
-            load_adapter("PH99")
