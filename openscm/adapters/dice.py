@@ -58,6 +58,8 @@ MODEL_PARAMETER_DEFAULTS = {
     "c3": (0.09175, "W/m^2/delta_degC"),  # 0.088; 0.088
     # Original: "Transfer coefficient for lower level"
     "c4": (0.00487, ""),  # 0.025; 0.025
+    # Original: Radiative forcing due to CO2 doubling (Wm-2)
+    "fco22x": (3.8, "W/m^2"),  # 3.6813
     # Original: "2010 forcings of non-CO2 GHG (Wm-2)"
     "fex0": (0.25, "W/m^2"),  # 0.5
     # Original: "2100 forcings of non-CO2 GHG (Wm-2)"
@@ -69,18 +71,9 @@ MODEL_PARAMETER_DEFAULTS = {
     "original_rounding": (True, None),
     # Time when forcing due to other greenhouse gases saturates (original: 2100)
     "forcoth_saturation_time": (np.datetime64("2100-01-01"), None),
-}
-
-STANDARD_PARAMETER_DEFAULTS = {
-    # Radiative forcing due to CO2 doubling (Wm-2)
-    "fco22x": ("Radiative Forcing Sensitivity", 3.8, "W/m^2"),  # 3.6813
     # Equilibrium climate sensitivity
     #     Original: "Equilibrium temp impact (oC per doubling CO2)"
-    "t2xco2": ("Equilibrium Climate Sensitivity", 2.9, "delta_degC"),  # 3.1
-    # Start time of run (not part of original)
-    "start_time": ("Start Time", None, None),
-    # Stop time of run (not part of original)
-    "stop_time": ("Stop Time", None, None),
+    "t2xco2": (2.9, "delta_degC"),  # 3.1
 }
 
 
@@ -91,9 +84,9 @@ class DICE(Adapter):
 
     TODO: use original calibration
 
-    # TODO: look at DICE original documentation to work out what it's convention for emissions
-    # and radiative forcing is. It could actually be point, I need to check (sorry Sven for all 
-    # this mucking around, one day it will end...)
+    TODO: look at DICE original documentation to work out what it's convention for emissions
+    and radiative forcing is. It could actually be point, I need to check (sorry Sven for all 
+    this mucking around, one day it will end...)
     """
 
     _timestep: int
@@ -111,7 +104,6 @@ class DICE(Adapter):
         """
         parameter_names = (
             list(MODEL_PARAMETER_DEFAULTS.keys())
-            + list(STANDARD_PARAMETER_DEFAULTS.keys())
             + [
                 "E",
                 "mat",
@@ -129,25 +121,12 @@ class DICE(Adapter):
         )
         self._values = namedtuple("DICEViews", parameter_names)
 
-        def set_parameter(
-            name: str,
-            full_name: Tuple[str, ...],
-            value: Any,
-            unit: Optional[str] = None,
-        ) -> None:
-            if unit is None:  # Generic parameter
-                p = self._parameters.generic(full_name)
-            else:  # Scalar parameter
-                p = self._parameters.scalar(full_name, unit)  # type: ignore
-            if value is not None and p.empty:
-                p.value = value
+        for name, (default, unit) in MODEL_PARAMETER_DEFAULTS.items():
+            p = self._set_default_parameter_if_empty_and_return(("DICE", name), default, unit=unit)
             setattr(self._values, name, p)
 
-        for name, (default, unit) in MODEL_PARAMETER_DEFAULTS.items():
-            set_parameter(name, ("DICE", name), default, unit=unit)
-
-        for name, (standard_name, default, unit) in STANDARD_PARAMETER_DEFAULTS.items():
-            set_parameter(name, (standard_name,), default, unit=unit)
+        # set Start Time, special case
+        self._set_default_parameter_if_empty_and_return("Start Time", np.datetime64("2000-01-01"))
 
     def _initialize_model_input(self) -> None:
         pass

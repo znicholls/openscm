@@ -73,7 +73,7 @@ class TestMyAdapter(_AdapterTester):
         assert test_adapter._values is not None
         assert test_adapter._values.c3.value == 0.09175
         assert test_adapter._parameters.scalar(("DICE", "tatm0"), "delta_degC").value == 0.8
-        assert test_adapter._parameters.scalar(("DICE", "t2xco2"), "delta_degC").value == 0.8
+        assert test_adapter._parameters.scalar(("DICE", "t2xco2"), "delta_degC").value == 2.9
         assert test_adapter._parameters.scalar(("Equilibrium Climate Sensitivity"), "delta_degC").empty
 
     def test_shutdown(self, test_adapter):

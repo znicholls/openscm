@@ -2,12 +2,13 @@
 Module including all model adapters shipped with OpenSCM.
 """
 from abc import ABCMeta, abstractmethod
-from typing import Dict, Optional
+from typing import Any, Dict, Optional, Union
 
 import numpy as np
 
-from ..core.parameters import HierarchicalName
+from ..core.parameters import HierarchicalName, ParameterType
 from ..core.parameterset import ParameterSet
+from ..core.time import ExtrapolationType, InterpolationType
 from ..errors import AdapterNeedsModuleError
 
 _loaded_adapters: Dict[str, type] = {}
@@ -28,12 +29,6 @@ class Adapter(metaclass=ABCMeta):
 
     _current_time: np.datetime64
     """Current time when using :func:`step`"""
-
-    _initialized: bool
-    """TODO: delete and replace with combination of reset and _update_model_parameter and _update_openscm_parameter"""
-
-    _initialized_inputs: bool
-    """TODO: delete and replace with combination of reset and _update_model_parameter and _update_openscm_parameter"""
 
     _output: ParameterSet
     """Output parameter set"""
@@ -70,15 +65,54 @@ class Adapter(metaclass=ABCMeta):
         """
         self._parameters = input_parameters
         self._output = output_parameters
-        self._initialized = False  # TODO: delete and replace with combination of reset and _update_model_parameter and _update_openscm_parameter
-        self._initialized_inputs = False  # TODO: delete and replace with combination of reset and _update_model_parameter and _update_openscm_parameter
-        self._current_time = 0
+        self._initialize_model()
+        self._current_time = self._parameters.generic("Start Time").value
+
 
     def __del__(self) -> None:
         """
         Destructor.
         """
         self._shutdown()
+
+    def _set_default_parameter_if_empty_and_return(
+    	self, 
+    	full_name: HierarchicalName, 
+    	value: Any, 
+    	overwrite: bool = False,
+    	unit: Optional[str] = None,
+    	time_points: Optional[np.ndarray] = None,
+    	region: HierarchicalName = ("World",),
+    	timeseries_type: Union[ParameterType, str] = "point",
+        interpolation: Union[InterpolationType, str] = "linear",
+        extrapolation: Union[ExtrapolationType, str] = "none",
+    ):
+	    """
+		Convenience method to set default parameter value.
+
+		TODO: decide whether to just make this a method of `ParameterSet` called something like `set_value`.
+	    """
+	    if unit is None:
+	    	p = self._parameters.generic(full_name, region=region)
+	    	val_name = "value"
+	    elif time_points is None:
+	    	p = self._parameters.scalar(full_name, unit, region=region)
+	    	val_name = "value"
+	    else:
+	    	p = self._parameters.timeseries(
+	    		full_name, 
+	    		unit, 
+	    		time_points,
+	    		region=region,
+	    		timeseries_type=timeseries_type,
+	    		interpolation=interpolation,
+	    		extrapolation=extrapolation,
+	    	)
+	    	val_name = "values"
+	    if p.empty or overwrite:
+	    	setattr(p, val_name, value)
+
+	    return p
 
     def initialize_model_input(self) -> None:
         """

@@ -2,6 +2,7 @@ from abc import ABCMeta, abstractmethod, abstractproperty
 
 import pytest
 
+from openscm.core.parameterset import ParameterSet
 
 class _AdapterTester(metaclass=ABCMeta):
     """
