@@ -6,6 +6,7 @@ from typing import Dict, Optional
 
 import numpy as np
 
+from ..core.parameters import HierarchicalName
 from ..core.parameterset import ParameterSet
 from ..errors import AdapterNeedsModuleError
 
@@ -29,10 +30,10 @@ class Adapter(metaclass=ABCMeta):
     """Current time when using :func:`step`"""
 
     _initialized: bool
-    """``True`` if model has been initialized via :func:`_initialize_model`"""
+    """TODO: delete and replace with combination of reset and _update_model_parameter and _update_openscm_parameter"""
 
     _initialized_inputs: bool
-    """True if model inputs have been initialized via :func:`initialize_model_input`"""
+    """TODO: delete and replace with combination of reset and _update_model_parameter and _update_openscm_parameter"""
 
     _output: ParameterSet
     """Output parameter set"""
@@ -40,21 +41,37 @@ class Adapter(metaclass=ABCMeta):
     _parameters: ParameterSet
     """Input parameter set"""
 
+    _parameters_versions: Dict[HierarchicalName, int]
+    """Parameter versions the model is up to date with"""
+
+    _openscm_standard_parameter_mappings: Dict[HierarchicalName, str]
+    """
+    Mapping from OpenSCM parameters to model parameters.
+
+    If required, use property setters to add extra behaviour (like calculating a model 
+    parameter based on the value of the OpenSCM parameter) when setting a model 
+    parameter from an OpenSCM parameter.
+    """
+
     def __init__(self, input_parameters: ParameterSet, output_parameters: ParameterSet):
         """
-        Initialize.
+        Initialize the adapter as well as the model sitting underneath it.
+
+		*Note:* as part of this process, all available model parameters are added to 
+        ``input_parameters`` (if they're not already there).
 
         Parameters
         ----------
         input_parameters
             Input parameter set to use
+
         output_parameters
             Output parameter set to use
         """
         self._parameters = input_parameters
         self._output = output_parameters
-        self._initialized = False
-        self._initialized_inputs = False
+        self._initialized = False  # TODO: delete and replace with combination of reset and _update_model_parameter and _update_openscm_parameter
+        self._initialized_inputs = False  # TODO: delete and replace with combination of reset and _update_model_parameter and _update_openscm_parameter
         self._current_time = 0
 
     def __del__(self) -> None:
@@ -65,6 +82,8 @@ class Adapter(metaclass=ABCMeta):
 
     def initialize_model_input(self) -> None:
         """
+        TODO: delete and replace with combination of reset and _update_model_parameter and _update_openscm_parameter
+
         Initialize the model input.
 
         Called before the adapter is used in any way and at most once before a call to
@@ -78,6 +97,8 @@ class Adapter(metaclass=ABCMeta):
 
     def initialize_run_parameters(self) -> None:
         """
+        TODO: delete and replace with combination of reset and _update_model_parameter and _update_openscm_parameter
+
         Initialize parameters for the run.
 
         Called before the adapter is used in any way and at most once before a call to
@@ -95,6 +116,10 @@ class Adapter(metaclass=ABCMeta):
 
         Called once after each call of :func:`run` and to reset the model after several calls
         to :func:`step`.
+
+        *Note:* this method sets the model configuration to match the values in
+        `self._parameters``, which is not necessarily the same as the state which was 
+        used at the start of the last run.
         """
         self._current_time = self._parameters.generic("Start Time").value
         self._reset()
@@ -122,13 +147,14 @@ class Adapter(metaclass=ABCMeta):
         """
         To be implemented by specific adapters.
 
-        Initialize the model. Called only once but as late as possible before a call to
-        :func:`_run` or :func:`_step`.
+        Initialize the model. Called only during :func:`__init__`.
         """
 
     @abstractmethod
     def _initialize_model_input(self) -> None:
         """
+        TODO: delete and replace with combination of reset and _update_model_parameter and _update_openscm_parameter
+
         To be implemented by specific adapters.
 
         Initialize the model input. Called before the adapter is used in any way and at
@@ -138,6 +164,8 @@ class Adapter(metaclass=ABCMeta):
     @abstractmethod
     def _initialize_run_parameters(self) -> None:
         """
+        TODO: delete and replace with combination of reset and _update_model_parameter and _update_openscm_parameter
+
         To be implemented by specific adapters.
 
         Initialize parameters for the run. Called before the adapter is used in any way
@@ -147,6 +175,8 @@ class Adapter(metaclass=ABCMeta):
     @abstractmethod
     def _reset(self) -> None:
         """
+        TODO: delete and replace with combination of reset and _update_model_parameter and _update_openscm_parameter
+
         To be implemented by specific adapters.
 
         Reset the model to prepare for a new run. Called once after each call of
