@@ -90,6 +90,10 @@ class DICE(Adapter):
     model.
 
     TODO: use original calibration
+
+    # TODO: look at DICE original documentation to work out what it's convention for emissions
+    # and radiative forcing is. It could actually be point, I need to check (sorry Sven for all 
+    # this mucking around, one day it will end...)
     """
 
     _timestep: int
