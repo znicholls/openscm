@@ -13,15 +13,19 @@ variable naming. Original comments are marked by "Original:".
 
 from collections import namedtuple
 from math import log2
-from typing import Any, Optional, Tuple
+from typing import Any, Optional, Union, Tuple
 
 import numpy as np
 
-from ..core.parameters import ParameterType
+from ..core.parameters import HierarchicalName, ParameterInfo, ParameterType
 from ..core.time import create_time_points
+from ..errors import ParameterEmptyError
 from . import Adapter
 
 YEAR = np.timedelta64(365, "D")  # pylint: disable=too-many-function-args
+
+_default_start_time = np.datetime64("1000-01-01")
+_default_stop_time = np.datetime64("3100-01-01")
 
 MODEL_PARAMETER_DEFAULTS = {
     # Initial size of atmospheric CO2 pool
@@ -74,6 +78,10 @@ MODEL_PARAMETER_DEFAULTS = {
     # Equilibrium climate sensitivity
     #     Original: "Equilibrium temp impact (oC per doubling CO2)"
     "t2xco2": (2.9, "delta_degC"),  # 3.1
+    # Not in original
+    "start_time": (_default_start_time, None),
+    "stop_time": (_default_stop_time, None),
+    "E": (None, "GtCO2/a", "average"),
 }
 
 
@@ -98,6 +106,19 @@ class DICE(Adapter):
     _values: Any
     """Parameter views"""
 
+    _openscm_standard_parameter_mappings = {
+        "Equilibrium Climate Sensitivity": "t2xco2",
+        "Radiative Forcing 2xCO2": "fco22x",
+        "Start Time": "start_time",
+        "Stop Time": "stop_time",
+        "Step Length": "period_length",
+        ("Emissions", "CO2"): "E",
+    }
+
+    @property
+    def name(self):
+        return "DICE"
+    
     def _initialize_model(self) -> None:
         """
         Initialize the model.
@@ -105,7 +126,6 @@ class DICE(Adapter):
         parameter_names = (
             list(MODEL_PARAMETER_DEFAULTS.keys())
             + [
-                "E",
                 "mat",
                 "ml",
                 "mu",
@@ -121,93 +141,126 @@ class DICE(Adapter):
         )
         self._values = namedtuple("DICEViews", parameter_names)
 
-        for name, (default, unit) in MODEL_PARAMETER_DEFAULTS.items():
-            p = self._set_default_parameter_if_empty_and_return(("DICE", name), default, unit=unit)
-            setattr(self._values, name, p)
+        inverse_openscm_standard_parameter_mappings = {
+            v: k for k, v in self._openscm_standard_parameter_mappings.items()
+        }
+        for name, settings in MODEL_PARAMETER_DEFAULTS.items():
+            full_name = ("DICE", name)
+            if len(settings) == 2:
+                default, unit = settings
+            
+                self._add_parameter_view(full_name, value=default, unit=unit)
+                setattr(self._values, name, self._parameter_views[full_name])
 
-        # set Start Time, special case
-        self._set_default_parameter_if_empty_and_return("Start Time", np.datetime64("2000-01-01"))
+                if name in inverse_openscm_standard_parameter_mappings:
+                    openscm_name = inverse_openscm_standard_parameter_mappings[name]
+                    # don't set default here, leave that for later
+                    self._add_parameter_view(openscm_name, unit=unit)
 
-    def _initialize_model_input(self) -> None:
-        pass
+            else:
+                default, unit, timeseries_type = settings
+                self._add_parameter_view(
+                    full_name, 
+                    value=default, 
+                    unit=unit,
+                    timeseries_type=timeseries_type,
+                )
+                setattr(self._values, name, self._parameter_views[full_name])
 
-    def _initialize_run_parameters(self) -> None:
-        self._timestep = 0
+                if name in inverse_openscm_standard_parameter_mappings:
+                    openscm_name = inverse_openscm_standard_parameter_mappings[name]
+                    # don't set default here, leave that for later
+                    self._add_parameter_view(
+                        openscm_name, 
+                        unit=unit,
+                        timeseries_type=timeseries_type,
+                    )
 
-        self._timestep_count = (
-            int(
-                (self._values.stop_time.value - self._values.start_time.value)
-                / self._values.period_length.value
-            )
-            + 1  # include self._stop_time
-        )
-        time_points = create_time_points(
-            self._values.start_time.value,
-            self._values.period_length.value,
-            self._timestep_count,
-            ParameterType.POINT_TIMESERIES,
-        )
-        time_points_for_averages = create_time_points(
-            self._values.start_time.value,
-            self._values.period_length.value,
-            self._timestep_count,
-            ParameterType.AVERAGE_TIMESERIES,
-        )
+    def _get_time_points(self, timeseries_type: Union[ParameterType, str]) -> np.ndarray:
+        if self._timeseries_time_points_require_update():
+            def get_time_points(tt):
+                return create_time_points(
+                    self._start_time,
+                    self._period_length,
+                    self._timestep_count,
+                    tt
+                )
 
-        # Original: "Total CO2 emissions (GtCO2 per year)"
-        self._values.E = self._parameters.timeseries(
-            ("Emissions", "CO2"),
-            "GtCO2/a" if self._values.original_rounding.value else "GtC/a",
-            time_points_for_averages,
-            timeseries_type="average",
-        )
-
-        # Original: "Carbon concentration increase in atmosphere (GtC from 1750)"
-        self._values.mat = self._output.timeseries(
-            ("Pool", "CO2", "Atmosphere"), "GtC", time_points, timeseries_type="point"
-        )
-
-        # Original: "Carbon concentration increase in lower oceans (GtC from 1750)"
-        self._values.ml = self._output.timeseries(
-            ("Pool", "CO2", "Ocean", "lower"),
-            "GtC",
-            time_points,
-            timeseries_type="point",
-        )
-
-        # Original: "Carbon concentration increase in shallow oceans (GtC from 1750)"
-        self._values.mu = self._output.timeseries(
-            ("Pool", "CO2", "Ocean", "shallow"),
-            "GtC",
-            time_points,
-            timeseries_type="point",
+            self._time_points = get_time_points("point")
+            self._time_points_for_averages = get_time_points("average")
+            
+        return (
+            self._time_points 
+            if timeseries_type in ("point", ParameterType.POINT_TIMESERIES) 
+            else self._time_points_for_averages
         )
 
-        # Original: "Increase temperature of atmosphere (degrees C from 1900)"
-        self._values.tatm = self._output.timeseries(
-            ("Surface Temperature", "Increase"),
-            "delta_degC",
-            time_points,
-            timeseries_type="point",
-        )
+    @property
+    def _start_time(self):
+        try:
+            return self._parameter_views["Start Time"].value
+        except:
+            return self._parameter_views[("DICE", "start_time")].value
 
-        # Original: "Increase in temperatureof lower oceans (degrees from 1900)"
-        self._values.tocean = self._output.timeseries(
-            ("Ocean Temperature", "Increase"),
-            "delta_degC",
-            time_points,
-            timeseries_type="point",
-        )
+    @property
+    def _period_length(self):
+        try:
+            return self._parameter_views["Step Length"].value
+        except:
+            return self._parameter_views[("DICE", "period_length")].value
 
-        # Original: "Increase in radiative forcing (watts per m2 from 1900)"
-        self._values.forc = self._output.timeseries(
-            ("Radiative Forcing", "CO2"),
-            "W/m^2",
-            time_points_for_averages,
-            timeseries_type="average",
-        )
+    @property
+    def _timestep_count(self):
+        try:
+            stop_time = self._parameter_views["Stop Time"].value
+        except:
+            stop_time = self._parameter_views[("DICE", "stop_time")].value
 
-    def _reset(self) -> None:
+        return int(
+            (stop_time - self._start_time)
+            / self._period_length
+        ) + 1  # include self._stop_time
+
+    def _timeseries_time_points_require_update(self):
+        try:
+            self._time_points
+            self._time_points_for_averages
+        except AttributeError:
+            return True
+
+        names_to_check = [
+            "Start Time",
+            "Stop Time",
+            "Step Length",
+        ]
+        for n in names_to_check:
+            if self._parameter_views[n].version > self._parameter_versions[n]:
+                return True
+            if n in self._openscm_standard_parameter_mappings:
+                model_n = (self.name, self._openscm_standard_parameter_mappings[n])
+                if self._parameter_views[model_n].version > self._parameter_versions[model_n]:
+                    return True
+        return False
+
+    def _update_model(self, name: HierarchicalName, para: ParameterInfo) -> None:
+        try:
+            values = self._get_parameter_value(para)
+            if name in self._openscm_standard_parameter_mappings:
+                model_name = (self.name, self._openscm_standard_parameter_mappings[name])
+                self._check_derived_paras([model_name], name)
+                setattr(self._values, model_name[1], para)
+                self._set_parameter_value(
+                    self._parameter_views[model_name], values
+                )
+            else:
+                assert name[0] == self.name, "..."
+                setattr(self._values, name[1], para)
+
+        except ParameterEmptyError:
+            pass
+    
+    def _reset(self) -> None:        
+        self._set_output_views()
         self._timestep = 0
         v = self._values  # just for convenience
 
@@ -234,6 +287,63 @@ class DICE(Adapter):
             v.fco22x.value * log2(v.mat0.value / v.mateq.value) + v.fex0.value
         )
 
+    def _set_output_views(self) -> None:
+        # Original: "Total CO2 emissions (GtCO2 per year)"
+        self._values.E = self._parameters.timeseries(
+            ("Emissions", "CO2"),
+            "GtCO2/a" if self._values.original_rounding.value else "GtC/a",
+            self._get_time_points("average"),
+            timeseries_type="average",
+        )
+
+        # Original: "Carbon concentration increase in atmosphere (GtC from 1750)"
+        self._values.mat = self._output.timeseries(
+            ("Pool", "CO2", "Atmosphere"), 
+            "GtC", 
+            self._get_time_points("point"), 
+            timeseries_type="point"
+        )
+
+        # Original: "Carbon concentration increase in lower oceans (GtC from 1750)"
+        self._values.ml = self._output.timeseries(
+            ("Pool", "CO2", "Ocean", "lower"),
+            "GtC",
+            self._get_time_points("point"), 
+            timeseries_type="point"
+        )
+
+        # Original: "Carbon concentration increase in shallow oceans (GtC from 1750)"
+        self._values.mu = self._output.timeseries(
+            ("Pool", "CO2", "Ocean", "shallow"),
+            "GtC",
+            self._get_time_points("point"), 
+            timeseries_type="point"
+        )
+
+        # Original: "Increase temperature of atmosphere (degrees C from 1900)"
+        self._values.tatm = self._output.timeseries(
+            ("Surface Temperature Increase"),
+            "delta_degC",
+            self._get_time_points("point"), 
+            timeseries_type="point"
+        )
+
+        # Original: "Increase in temperatureof lower oceans (degrees from 1900)"
+        self._values.tocean = self._output.timeseries(
+            ("Ocean Temperature Increase"),
+            "delta_degC",
+            self._get_time_points("point"), 
+            timeseries_type="point"
+        )
+
+        # Original: "Increase in radiative forcing (watts per m2 from 1900)"
+        self._values.forc = self._output.timeseries(
+            ("Radiative Forcing", "CO2"),
+            "W/m^2",
+            self._get_time_points("average"), 
+            timeseries_type="average"
+        )
+
     def _shutdown(self) -> None:
         pass
 
@@ -252,7 +362,6 @@ class DICE(Adapter):
 
         for _ in range(self._timestep_count - 1):
             self._calc_step()
-        self._values.forc.unlock()
 
         v.mat.unlock()
         v.ml.unlock()
@@ -326,6 +435,8 @@ class DICE(Adapter):
             ) / (v.forcoth_saturation_time.value - v.start_time.value)
 
         # Original: "Increase in radiative forcing (watts per m2 from 1900)"
+        # import pdb
+        # pdb.set_trace()
         v.forc.values[self._timestep] = (
             v.fco22x.value * log2(v.mat.values[self._timestep] / v.mateq.value)
             + forcoth

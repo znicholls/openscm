@@ -175,7 +175,7 @@ class ParameterSet:
         self,
         name: HierarchicalName,
         unit: str,
-        time_points: np.ndarray,
+        time_points: Optional[np.ndarray] = None,
         region: HierarchicalName = ("World",),
         timeseries_type: Union[ParameterType, str] = ParameterType.POINT_TIMESERIES,
         interpolation: Union[InterpolationType, str] = InterpolationType.LINEAR,
@@ -223,10 +223,9 @@ class ParameterSet:
         parameter = self._get_or_create_parameter(
             name, self._get_or_create_region(region)
         )
-
         parameter.attempt_read(timeseries_type, unit, time_points)
         return TimeseriesView(
-            parameter, unit, time_points, timeseries_type, interpolation, extrapolation
+            parameter, unit, timeseries_type, interpolation, extrapolation, time_points=time_points
         )  # TimeseriesView
 
     def generic(

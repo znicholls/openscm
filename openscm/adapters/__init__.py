@@ -1,15 +1,18 @@
 """
 Module including all model adapters shipped with OpenSCM.
 """
-from abc import ABCMeta, abstractmethod
-from typing import Any, Dict, Optional, Union
+import warnings
+from abc import ABCMeta, abstractmethod, abstractproperty
+from collections import namedtuple
+from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
 
-from ..core.parameters import HierarchicalName, ParameterType
+from ..core.parameters import HierarchicalName, ParameterInfo, ParameterType
 from ..core.parameterset import ParameterSet
-from ..core.time import ExtrapolationType, InterpolationType
+from ..core.time import ExtrapolationType, InterpolationType, create_time_points
 from ..errors import AdapterNeedsModuleError
+
 
 _loaded_adapters: Dict[str, type] = {}
 
@@ -30,14 +33,17 @@ class Adapter(metaclass=ABCMeta):
     _current_time: np.datetime64
     """Current time when using :func:`step`"""
 
-    _output: ParameterSet
-    """Output parameter set"""
-
     _parameters: ParameterSet
     """Input parameter set"""
 
-    _parameters_versions: Dict[HierarchicalName, int]
-    """Parameter versions the model is up to date with"""
+    _output: ParameterSet
+    """Output parameter set"""
+
+    _parameter_views: Dict[HierarchicalName, ParameterInfo]
+    """Parameter views available with this model"""
+
+    _parameter_versions: Dict[HierarchicalName, int]
+    """Parameter versions (last time parameter was passed to the model)"""
 
     _openscm_standard_parameter_mappings: Dict[HierarchicalName, str]
     """
@@ -48,11 +54,14 @@ class Adapter(metaclass=ABCMeta):
     parameter from an OpenSCM parameter.
     """
 
+    _direct_set: bool
+    """Be careful about overwriting other parameters when setting a model parameter?"""
+
     def __init__(self, input_parameters: ParameterSet, output_parameters: ParameterSet):
         """
         Initialize the adapter as well as the model sitting underneath it.
 
-		*Note:* as part of this process, all available model parameters are added to 
+        *Note:* as part of this process, all available model parameters are added to 
         ``input_parameters`` (if they're not already there).
 
         Parameters
@@ -65,8 +74,10 @@ class Adapter(metaclass=ABCMeta):
         """
         self._parameters = input_parameters
         self._output = output_parameters
+        self._parameter_views = {}
+        self._parameter_versions = {}
+        self._direct_set = False
         self._initialize_model()
-        self._current_time = self._parameters.generic("Start Time").value
 
 
     def __del__(self) -> None:
@@ -75,74 +86,52 @@ class Adapter(metaclass=ABCMeta):
         """
         self._shutdown()
 
-    def _set_default_parameter_if_empty_and_return(
-    	self, 
-    	full_name: HierarchicalName, 
-    	value: Any, 
-    	overwrite: bool = False,
-    	unit: Optional[str] = None,
-    	time_points: Optional[np.ndarray] = None,
-    	region: HierarchicalName = ("World",),
-    	timeseries_type: Union[ParameterType, str] = "point",
+    def _add_parameter_view(
+        self, 
+        full_name: HierarchicalName, 
+        value: Optional[Any] = None,
+        overwrite: bool = False,
+        unit: Optional[str] = None,
+        timeseries_type: Optional[Union[ParameterType, str]] = None,
+        time_points: Optional[np.ndarray] = None,
+        region: HierarchicalName = ("World",),
         interpolation: Union[InterpolationType, str] = "linear",
         extrapolation: Union[ExtrapolationType, str] = "none",
     ):
-	    """
-		Convenience method to set default parameter value.
-
-		TODO: decide whether to just make this a method of `ParameterSet` called something like `set_value`.
-	    """
-	    if unit is None:
-	    	p = self._parameters.generic(full_name, region=region)
-	    	val_name = "value"
-	    elif time_points is None:
-	    	p = self._parameters.scalar(full_name, unit, region=region)
-	    	val_name = "value"
-	    else:
-	    	p = self._parameters.timeseries(
-	    		full_name, 
-	    		unit, 
-	    		time_points,
-	    		region=region,
-	    		timeseries_type=timeseries_type,
-	    		interpolation=interpolation,
-	    		extrapolation=extrapolation,
-	    	)
-	    	val_name = "values"
-	    if p.empty or overwrite:
-	    	setattr(p, val_name, value)
-
-	    return p
-
-    def initialize_model_input(self) -> None:
         """
-        TODO: delete and replace with combination of reset and _update_model_parameter and _update_openscm_parameter
+        Add parameter view to ``self._parameter_views``
 
-        Initialize the model input.
-
-        Called before the adapter is used in any way and at most once before a call to
-        :func:`run` or :func:`step`.
+        This method also allows default values to be set if the parameter is empty (or 
+        ``overwrite`` is True) and stores the version of parameters too.
         """
-        if not self._initialized:
-            self._initialize_model()
-            self._initialized = True
+        if unit is None:
+            p = self._parameters.generic(full_name, region=region)
+        elif timeseries_type is None:
+            p = self._parameters.scalar(full_name, unit, region=region)
+        else:
+            p = self._parameters.timeseries(
+                full_name, 
+                unit, 
+                region=region,
+                timeseries_type=timeseries_type,
+            )
 
-        self._initialize_model_input()
+        self._parameter_views[full_name] = p
 
-    def initialize_run_parameters(self) -> None:
-        """
-        TODO: delete and replace with combination of reset and _update_model_parameter and _update_openscm_parameter
+        if value is not None and (p.empty or overwrite):
+            # match parameterview to value
+            self._set_parameter_value(p, value)
+        elif not p.empty:
+            # match model to parameter view
+            self._update_model(full_name)
 
-        Initialize parameters for the run.
+        self._parameter_versions[full_name] = p.version
 
-        Called before the adapter is used in any way and at most once before a call to
-        :func:`run` or :func:`step`.
-        """
-        if not self._initialized:
-            self._initialize_model()
-            self._initialized = True
-
-        self._initialize_run_parameters()
+    def _set_parameter_value(self, p, value):
+        if p.parameter_type in (ParameterType.SCALAR, ParameterType.GENERIC):
+            p.value = value
+        else:
+            p.values = value
 
     def reset(self) -> None:
         """
@@ -156,7 +145,9 @@ class Adapter(metaclass=ABCMeta):
         used at the start of the last run.
         """
         self._current_time = self._parameters.generic("Start Time").value
+        self._set_model_from_parameters()
         self._reset()
+
 
     def run(self) -> None:
         """
@@ -176,69 +167,132 @@ class Adapter(metaclass=ABCMeta):
         self._step()
         return self._current_time
 
+    def _set_model_from_parameters(self):
+        update_time_points = self._timeseries_time_points_require_update()
+        for name, view in self._get_view_iterator():
+            update_time = (
+                update_time_points 
+                and self._parameter_views[name].parameter_type in (
+                    ParameterType.POINT_TIMESERIES, 
+                    ParameterType.AVERAGE_TIMESERIES
+                )
+            )
+            if update_time:
+                current_view = self._parameter_views[name]
+                self._parameter_views[name] = self._parameters.timeseries(
+                    name,
+                    current_view.unit,
+                    time_points=self._get_time_points(current_view.parameter_type),
+                    region=current_view.region,
+                    timeseries_type=current_view.parameter_type,
+                    interpolation="linear",  # TODO: take these from ParameterSet
+                    extrapolation="none",
+                )
+            update_para = (
+                self._parameter_versions[name] < view.version
+                or update_time
+            )
+            if update_para:
+                if isinstance(name, tuple) and name[0] == self.name:
+                    self._direct_set = True
+                self._update_model_parameter(name)
+                self._parameter_versions[name] = self._parameter_views[name].version
+                self._direct_set = False
+
+    def _get_view_iterator(self):
+        view_iterator = self._parameter_views.items()
+        view_iterator = sorted(view_iterator, key=lambda s: len(s[0]))
+        generic_views = [
+            v for v in view_iterator 
+            if v[1].parameter_type == ParameterType.GENERIC
+        ]
+        scalar_views = [
+            v for v in view_iterator 
+            if v[1].parameter_type == ParameterType.SCALAR
+        ]
+        other_views = [
+            v for v in view_iterator 
+            if v[1].parameter_type not in (ParameterType.GENERIC, ParameterType.SCALAR)
+        ]
+        return generic_views + scalar_views + other_views
+
+    def _update_model_parameter(self, name: HierarchicalName):
+        para = self._parameter_views[name]
+        self._update_model(name, para)
+
+    def _get_parameter_value(self, p):
+        if p.parameter_type in (ParameterType.SCALAR, ParameterType.GENERIC):
+            return p.value
+        else:
+            return p.values
+
+    def _check_derived_paras(self, paras: List[ParameterInfo], name: HierarchicalName):
+        for para in paras:
+            p = self._parameter_views[para]
+            if p.version > 1:
+                warnings.warn("Setting {} overrides setting with {}".format(name, p.name))
+
     @abstractmethod
     def _initialize_model(self) -> None:
         """
-        To be implemented by specific adapters.
+        Initialize the model, including collecting all relevant ParameterViews. 
 
-        Initialize the model. Called only during :func:`__init__`.
-        """
-
-    @abstractmethod
-    def _initialize_model_input(self) -> None:
-        """
-        TODO: delete and replace with combination of reset and _update_model_parameter and _update_openscm_parameter
-
-        To be implemented by specific adapters.
-
-        Initialize the model input. Called before the adapter is used in any way and at
-        most once before a call to :func:`_run` or :func:`_step`.
-        """
-
-    @abstractmethod
-    def _initialize_run_parameters(self) -> None:
-        """
-        TODO: delete and replace with combination of reset and _update_model_parameter and _update_openscm_parameter
-
-        To be implemented by specific adapters.
-
-        Initialize parameters for the run. Called before the adapter is used in any way
-        and at most once before a call to :func:`_run` or :func:`_step`.
-        """
-
-    @abstractmethod
-    def _reset(self) -> None:
-        """
-        TODO: delete and replace with combination of reset and _update_model_parameter and _update_openscm_parameter
-
-        To be implemented by specific adapters.
-
-        Reset the model to prepare for a new run. Called once after each call of
-        :func:`_run` and to reset the model after several calls to :func:`_step`.
+        Called only once, during :func:`__init__`.
         """
 
     @abstractmethod
     def _run(self) -> None:
         """
-        To be implemented by specific adapters.
-
         Run the model over the full time range.
         """
 
     @abstractmethod
     def _shutdown(self) -> None:
         """
-        To be implemented by specific adapters.
-
         Shut the model down.
         """
 
     @abstractmethod
     def _step(self) -> None:
         """
-        To be implemented by specific adapters.
-
         Do a single time step.
+        """
+
+    @abstractmethod
+    def _get_time_points(self, timeseries_type: Union[ParameterType, str]) -> np.ndarray:
+        """
+        Get time points for timeseries views.
+
+        Parameters
+        ----------
+        timeseries_type
+            Type of timeseries for which to get points
+        """
+
+    @abstractmethod
+    def _update_model(self, name: HierarchicalName, para: ParameterInfo) -> None:
+        """
+        Update a model value
+
+        Parameters
+        ----------
+        name
+            Name of parameter to update
+
+        para
+            Parameter view to use for the update
+        """
+
+    @abstractmethod
+    def _timeseries_time_points_require_update(self) -> None:
+        """
+        Determine if the timeseries view time points require updating
+        """
+    
+    @abstractproperty
+    def name(self):
+        """
+        Name of the model as used in OpenSCM parameters
         """
 
 

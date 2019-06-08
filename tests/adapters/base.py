@@ -35,9 +35,6 @@ class _AdapterTester(metaclass=ABCMeta):
         output_parameters = ParameterSet()
         tadapter = self.tadapter(parameters, output_parameters)
 
-        # all models should have a default start time which they set
-        assert not parameters.generic("Start Time").empty
-
     @abstractmethod
     def test_shutdown(self, test_adapter):
         """

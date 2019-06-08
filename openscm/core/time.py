@@ -421,7 +421,7 @@ class TimeseriesConverter:
         self._interpolation_type = interpolation_type
         self._extrapolation_type = extrapolation_type
 
-        if self._source[0] > self._target[1]:  # TODO: consider extrapolation type
+        if self._source[0] > self._target[-1]:  # TODO: consider extrapolation type
             raise InsufficientDataError
 
     def _calc_continuous_representation(
@@ -509,7 +509,7 @@ class TimeseriesConverter:
         target_time_points: np.ndarray,
     ) -> np.ndarray:
         """
-        Wrap :func:`_convert_unsafe` to provide proper error handling.
+        Wrapper of :func:`_convert_unsafe` to provide proper error handling.
 
         :func:`_convert_unsafe` converts time period average timeseries data
         :obj:`values` for timeseries time points :obj:`source_time_points` to the time

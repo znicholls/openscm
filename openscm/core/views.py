@@ -272,10 +272,10 @@ class TimeseriesView(ParameterInfo):  # pylint: disable=too-many-instance-attrib
         self,
         parameter: _Parameter,
         unit: str,
-        time_points: np.ndarray,
         timeseries_type: ParameterType,
         interpolation_type: InterpolationType,
         extrapolation_type: ExtrapolationType,
+        time_points: Optional[np.ndarray] = None,
     ):
         """
         Initialize.
@@ -297,13 +297,14 @@ class TimeseriesView(ParameterInfo):  # pylint: disable=too-many-instance-attrib
         """
         super().__init__(parameter)
         self._unit_converter = UnitConverter(cast(str, parameter.unit), unit)
-        self._timeseries_converter = TimeseriesConverter(
-            parameter.time_points,
-            time_points,
-            timeseries_type,
-            interpolation_type,
-            extrapolation_type,
-        )
+        if time_points is not None:
+            self._timeseries_converter = TimeseriesConverter(
+                parameter.time_points,
+                time_points,
+                timeseries_type,
+                interpolation_type,
+                extrapolation_type,
+            )
         self._data = None
         self._locked = False
         self._timeseries = None
@@ -324,10 +325,10 @@ class TimeseriesView(ParameterInfo):  # pylint: disable=too-many-instance-attrib
                 TimeseriesView(
                     parameter,
                     self._unit_converter.target,
-                    self._timeseries_converter._target,  # pylint: disable=protected-access
                     timeseries_type,
                     interpolation_type,
                     extrapolation_type,
+                    time_points=self._timeseries_converter._target,  # pylint: disable=protected-access
                 )
             ]
 
@@ -379,7 +380,7 @@ class TimeseriesView(ParameterInfo):  # pylint: disable=too-many-instance-attrib
         )
 
     @property
-    def values(self) -> _Timeseries:
+    def values(self) -> np.ndarray:
         """
         Values of the full timeseries
 

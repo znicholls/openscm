@@ -266,16 +266,37 @@ class _Parameter:
                     raise ParameterAggregationError
                 self.data = None
             else:  # parameter is a timeseries
-                self.data = np.full(
-                    (
-                        (len(time_points) - 1)  # type: ignore
-                        if parameter_type == ParameterType.AVERAGE_TIMESERIES
-                        else len(time_points)  # type: ignore
-                    ),
-                    float("NaN"),
-                )
-                self.time_points = np.array(time_points, copy=True)
-        self.has_been_read_from = True
+                if time_points is not None:
+                    self.data = np.full(
+                        (
+                            (len(time_points) - 1)  # type: ignore
+                            if parameter_type == ParameterType.AVERAGE_TIMESERIES
+                            else len(time_points)  # type: ignore
+                        ),
+                        float("NaN"),
+                    )
+                    self.time_points = np.array(time_points, copy=True)
+                    
+        if self.parameter_type not in (ParameterType.SCALAR, ParameterType.GENERIC):
+            if time_points is not None:
+                try:
+                    self.data
+                except AttributeError:
+                    self.data = np.full(
+                        (
+                            (len(time_points) - 1)  # type: ignore
+                            if parameter_type == ParameterType.AVERAGE_TIMESERIES
+                            else len(time_points)  # type: ignore
+                        ),
+                        float("NaN"),
+                    )
+                    self.time_points = np.array(time_points, copy=True)
+
+        try:
+            self.data
+            self.has_been_read_from = True
+        except AttributeError:
+            pass
 
     def attempt_write(
         self,
