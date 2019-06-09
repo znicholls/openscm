@@ -2,10 +2,11 @@
 Adapter for the simple climate model first presented in Petschel-Held Climatic Change 1999.
 """
 import warnings
+from typing import Union
 
 import numpy as np
 
-from ..core.parameters import ParameterType
+from ..core.parameters import HierarchicalName, ParameterInfo, ParameterType
 from ..core.time import create_time_points
 from ..core.units import _unit_registry
 from ..errors import ParameterEmptyError
@@ -33,8 +34,90 @@ class PH99(Adapter):
     """Base time. PH99 has no concept of datetimes so we make it up here"""
 
     @property
+    def name(self):
+        return "PH99"
+    
+    @property
     def _ecs(self):
         return self._parameters.scalar("Equilibrium Climate Sensitivity", "delta_degC").value * _unit_registry("delta_degC")
+
+    def _get_time_points(self, timeseries_type: Union[ParameterType, str]) -> np.ndarray:
+        if self._timeseries_time_points_require_update():
+            def get_time_points(tt):
+                return create_time_points(
+                    self._start_time,
+                    self._period_length,
+                    self._timestep_count,
+                    tt
+                )
+
+            self._time_points = get_time_points("point")
+            self._time_points_for_averages = get_time_points("average")
+            
+        return (
+            self._time_points 
+            if timeseries_type in ("point", ParameterType.POINT_TIMESERIES) 
+            else self._time_points_for_averages
+        )
+
+    def _timeseries_time_points_require_update(self):
+        try:
+            self._time_points
+            self._time_points_for_averages
+        except AttributeError:
+            return True
+
+        names_to_check = [
+            "Start Time",
+            "Stop Time",
+            "Step Length",
+        ]
+        for n in names_to_check:
+            if self._parameter_views[n].version > self._parameter_versions[n]:
+                return True
+            if n in self._openscm_standard_parameter_mappings:
+                model_n = (self.name, self._openscm_standard_parameter_mappings[n])
+                if self._parameter_views[model_n].version > self._parameter_versions[model_n]:
+                    return True
+        return False 
+
+    def _update_model(self, name: HierarchicalName, para: ParameterInfo) -> None:
+        try:
+            values = self._get_parameter_value(para)
+            if name in self._openscm_standard_parameter_mappings:
+                model_name = (self.name, self._openscm_standard_parameter_mappings[name])
+                self._check_derived_paras([model_name], name)
+                setattr(self._values, model_name[1], para)
+                self._set_parameter_value(
+                    self._parameter_views[model_name], values
+                )
+            else:
+                assert name[0] == self.name, "..."
+                setattr(self._values, name[1], para)
+
+        except ParameterEmptyError:
+            pass
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
     def _initialize_model(self) -> None:
@@ -62,7 +145,7 @@ class PH99(Adapter):
             mag = int(value.to(units).magnitude)
             self._parameters.scalar(name, "s").value = int(mag)
             if int(self.model.timestep.magnitude) != int(mag):
-                warnings.warn("Rounding model timestep to nearest integer")
+                warnings.warn("Rounding {} timestep to nearest integer".format(self.name))
                 self.model.timestep = mag * _unit_registry("s")  # ensure we use integer steps to be OpenSCM compatible
             return
 
