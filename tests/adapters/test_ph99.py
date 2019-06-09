@@ -30,8 +30,8 @@ class TestPH99Adapter(_AdapterTester):
     def test_run(self, test_adapter, test_run_parameters):
         super().test_run(test_adapter, test_run_parameters)
 
-    # def test_step(self, test_adapter, test_run_parameters):
-    #     super().test_step(test_adapter, test_run_parameters)
+    def test_step(self, test_adapter, test_run_parameters):
+        super().test_step(test_adapter, test_run_parameters)
 
     # def test_run_reset_run_same(self, test_adapter, test_run_parameters):
     #     output = test_adapter._output

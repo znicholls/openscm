@@ -59,27 +59,27 @@ class _AdapterTester(metaclass=ABCMeta):
         test_adapter.reset()
         test_adapter.run()
 
-    # @abstractmethod
-    # def test_step(self, test_adapter, test_run_parameters):
-    #     """
-    #     Test that stepping the model does as intended.
+    @abstractmethod
+    def test_step(self, test_adapter, test_run_parameters):
+        """
+        Test that stepping the model does as intended.
 
-    #     Extra tests should be added depending on what the adapter should do when
-    #     stepped.
-    #     """
-    #     # if your model cannot step, override this method with the below
-    #     """
-    #     pytest.skip("Step unavailable for {}".format(type(test_adapter)))
-    #     """
-    #     # otherwise, use the below as a base
-    #     self.prepare_run_input(
-    #         test_adapter, test_run_parameters.start_time, test_run_parameters.stop_time
-    #     )
-    #     test_adapter.reset()
-    #     assert test_adapter._current_time == test_run_parameters.start_time
+        Extra tests should be added depending on what the adapter should do when
+        stepped.
+        """
+        # if your model cannot step, override this method with the below
+        """
+        pytest.skip("Step unavailable for {}".format(type(test_adapter)))
+        """
+        # otherwise, use the below as a base
+        self.prepare_run_input(
+            test_adapter, test_run_parameters.start_time, test_run_parameters.stop_time
+        )
+        test_adapter.reset()
+        assert test_adapter._current_time == test_run_parameters.start_time
 
-    #     new_time = test_adapter.step()
-    #     assert new_time > test_run_parameters.start_time
+        new_time = test_adapter.step()
+        assert new_time > test_run_parameters.start_time
 
     # @abstractmethod
     # def test_run_reset_run_same(self, test_adapter, test_run_parameters):
