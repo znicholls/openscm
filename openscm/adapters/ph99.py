@@ -36,8 +36,7 @@ class PH99(Adapter):
     _openscm_standard_parameter_mappings = {
         "Equilibrium Climate Sensitivity": "_ecs",
         "Radiative Forcing 2xCO2": "_f2xco2",
-        "Start Time": "start_time",
-        "Stop Time": "stop_time",
+        "Start Time": "time_start",
         "Step Length": "timestep",
         ("Atmospheric Concentrations", "CO2"): "concentrations",
         ("Cumulative Emissions", "CO2"): "cumulative_emissions",
@@ -119,6 +118,13 @@ class PH99(Adapter):
                         else:
                             self._add_parameter_view(openscm_name, unit=str(value.units))
 
+        # set a stop time because PH99 model doesn't have one
+        stop_time = self._start_time + 500*self._period_length
+        self._add_parameter_view(
+            "Stop Time",
+            value=stop_time,
+        )
+
     def _get_time_points(self, timeseries_type: Union[ParameterType, str]) -> np.ndarray:
         if self._timeseries_time_points_require_update():
             def get_time_points(tt):
@@ -137,6 +143,36 @@ class PH99(Adapter):
             if timeseries_type in ("point", ParameterType.POINT_TIMESERIES) 
             else self._time_points_for_averages
         )
+
+    @property
+    def _start_time(self):
+        try:
+            return self._parameter_views["Start Time"].value
+        except ParameterEmptyError:
+            v = self._parameter_views[(self.name, "time_start")].value
+            assert int(v) == v, "..."
+            return (
+                self._base_time
+                + np.timedelta64(int(v), "s")
+            )
+
+    @property
+    def _period_length(self):
+        try:
+            return self._parameter_views["Step Length"].value
+        except ParameterEmptyError:
+            v = self._parameter_views[(self.name, "timestep")].value
+            assert int(v) == v, "..."
+            return np.timedelta64(int(v), "s")
+
+    @property
+    def _timestep_count(self):
+        stop_time = self._parameter_views["Stop Time"].value
+
+        return int(
+            (stop_time - self._start_time)
+            / self._period_length
+        ) + 1  # include self._stop_time
 
     def _timeseries_time_points_require_update(self):
         try:
@@ -161,22 +197,26 @@ class PH99(Adapter):
 
     def _update_model(self, name: HierarchicalName, para: ParameterInfo) -> None:
         try:
-            import pdb
-            pdb.set_trace()
-            values = self._get_parameter_value(para)
-            if name in self._openscm_standard_parameter_mappings:
-                model_name = (self.name, self._openscm_standard_parameter_mappings[name])
-                self._check_derived_paras([model_name], name)
-                setattr(self._values, model_name[1], para)
-                self._set_parameter_value(
-                    self._parameter_views[model_name], values
-                )
+            value = self._get_parameter_value(para)
+            if name == "Stop Time":
+                pass
+            elif name in self._openscm_standard_parameter_mappings:
+                model_name = self._openscm_standard_parameter_mappings[name]
+                self._check_derived_paras([(self.name, model_name)], name)
+                self._set_model_para_from_openscm_para(model_name, name, value, para.unit)
             else:
                 assert name[0] == self.name, "..."
-                setattr(self._values, name[1], para)
+                setattr(self.model, name[1], value*_unit_registry(para.unit))
 
         except ParameterEmptyError:
             pass
+
+    def _set_model_para_from_openscm_para(self, model_name, openscm_name, value, unit):
+        if openscm_name == "Start Time":
+            value = (value - self._base_time).item().total_seconds()
+            unit = "s"
+
+        setattr(self.model, model_name, value*_unit_registry(unit))
 
     def _set_default_value(self, name, value):
         if name == ("PH99", "timestep"):
@@ -337,54 +377,30 @@ class PH99(Adapter):
         self.model.initialise_timeseries()
         self.model.run()
 
-        # self._output = ParameterSet()
-
+        imap = self._inverse_openscm_standard_parameter_mappings
         for att in dir(self.model):
             # all time parameters captured in parameterset output
             if not att.startswith(("_", "time", "emissions_idx")):
                 value = getattr(self.model, att)
-                if callable(value):
+                if callable(value) or not isinstance(value.magnitude, np.ndarray):
                     continue
 
-                name = self._get_openscm_name(att)
-                magnitude = value.magnitude
-                if isinstance(magnitude, np.ndarray):
-                    if name == ("Surface Temperature"):
-                        # this is where reference period etc. is important
-                        value = value - self.model.t1
-                        magnitude = value.magnitude
-
-                    if name in [("Emissions", "CO2")]:
-                        ptype = ParameterType.AVERAGE_TIMESERIES
-                    else:
-                        ptype = ParameterType.POINT_TIMESERIES
-
-                    time_points = create_time_points(
-                        self._parameters.generic("Start Time").value,
-                        np.timedelta64(int(self.model.timestep.to("s").magnitude), "s"),
-                        len(magnitude),
-                        timeseries_type=ptype,
-                    )
-                    self._output.timeseries(
-                        name,
-                        str(value.units),
-                        time_points,
-                        region=("World",),
-                        timeseries_type=ptype,
-                    ).values = magnitude
-                else:
-                    self._output.scalar(
-                        name, str(value.units), region=("World")
-                    ).value = magnitude
+                self._output.timeseries(
+                    imap[att],
+                    str(value.units),
+                    time_points=self._get_time_points(self._internal_timeseries_conventions[att]),
+                    region="World",
+                    timeseries_type=self._internal_timeseries_conventions[att],
+                ).values = value.magnitude
 
         ecs = (self.model.mu * np.log(2) / self.model.alpha).to("K")
         self._output.scalar(
-            ("ecs",), str(ecs.units), region=("World",)
+            ("Equilibrium Climate Sensitivity",), str(ecs.units), region=("World",)
         ).value = ecs.magnitude
 
         rf2xco2 = self.model.mu * self._hc_per_m2_approx
         self._output.scalar(
-            ("rf2xco2",), str(rf2xco2.units), region=("World",)
+            ("Radiative Forcing 2xCO2",), str(rf2xco2.units), region=("World",)
         ).value = rf2xco2.magnitude
 
     def _step(self) -> None:
