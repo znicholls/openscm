@@ -240,6 +240,13 @@ class Adapter(metaclass=ABCMeta):
         Called only once, during :func:`__init__`.
         """
 
+    
+    @abstractmethod
+    def _reset(self) -> None:
+        """
+        Perform model specific steps to reset after a run.
+        """
+
     @abstractmethod
     def _run(self) -> None:
         """
