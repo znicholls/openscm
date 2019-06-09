@@ -22,8 +22,8 @@ class TestPH99Adapter(_AdapterTester):
         assert test_adapter._parameters.scalar(("PH99", "b"), "ppm / (GtC * yr)").value == 1.51 * 10 ** -3
         assert test_adapter._parameters.generic("Start Time").value == np.datetime64("1750-01-01")
 
-    # def test_shutdown(self, test_adapter):
-    #     super().test_shutdown(test_adapter)
+    def test_shutdown(self, test_adapter):
+        super().test_shutdown(test_adapter)
 
     # def test_run(self, test_adapter, test_run_parameters):
     #     super().test_run(test_adapter, test_run_parameters)
