@@ -161,6 +161,8 @@ class PH99(Adapter):
 
     def _update_model(self, name: HierarchicalName, para: ParameterInfo) -> None:
         try:
+            import pdb
+            pdb.set_trace()
             values = self._get_parameter_value(para)
             if name in self._openscm_standard_parameter_mappings:
                 model_name = (self.name, self._openscm_standard_parameter_mappings[name])
