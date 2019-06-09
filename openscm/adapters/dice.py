@@ -141,9 +141,7 @@ class DICE(Adapter):
         )
         self._values = namedtuple("DICEViews", parameter_names)
 
-        inverse_openscm_standard_parameter_mappings = {
-            v: k for k, v in self._openscm_standard_parameter_mappings.items()
-        }
+        imap = self._inverse_openscm_standard_parameter_mappings
         for name, settings in MODEL_PARAMETER_DEFAULTS.items():
             full_name = ("DICE", name)
             if len(settings) == 2:
@@ -152,8 +150,8 @@ class DICE(Adapter):
                 self._add_parameter_view(full_name, value=default, unit=unit)
                 setattr(self._values, name, self._parameter_views[full_name])
 
-                if name in inverse_openscm_standard_parameter_mappings:
-                    openscm_name = inverse_openscm_standard_parameter_mappings[name]
+                if name in imap:
+                    openscm_name = imap[name]
                     # don't set default here, leave that for later
                     self._add_parameter_view(openscm_name, unit=unit)
 
@@ -167,8 +165,8 @@ class DICE(Adapter):
                 )
                 setattr(self._values, name, self._parameter_views[full_name])
 
-                if name in inverse_openscm_standard_parameter_mappings:
-                    openscm_name = inverse_openscm_standard_parameter_mappings[name]
+                if name in imap:
+                    openscm_name = imap[name]
                     # don't set default here, leave that for later
                     self._add_parameter_view(
                         openscm_name, 

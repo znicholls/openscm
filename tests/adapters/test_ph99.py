@@ -18,15 +18,17 @@ class TestPH99Adapter(_AdapterTester):
 
     def test_initialize(self, test_adapter):
         super().test_initialize(test_adapter)
-        assert test_adapter._parameters.scalar(("PH99", "timestep"), "s").value == int((1*_unit_registry("yr")).to("s").magnitude)
+        timestep = int((1*_unit_registry("yr")).to("s").magnitude)
+        assert test_adapter._parameters.scalar(("PH99", "timestep"), "s").value == timestep
         assert test_adapter._parameters.scalar(("PH99", "b"), "ppm / (GtC * yr)").value == 1.51 * 10 ** -3
-        assert test_adapter._parameters.generic("Start Time").value == np.datetime64("1750-01-01")
+        assert test_adapter._parameters.generic("Start Time").empty
+        assert test_adapter._parameters.generic("Step Length").empty
 
     def test_shutdown(self, test_adapter):
         super().test_shutdown(test_adapter)
 
-    # def test_run(self, test_adapter, test_run_parameters):
-    #     super().test_run(test_adapter, test_run_parameters)
+    def test_run(self, test_adapter, test_run_parameters):
+        super().test_run(test_adapter, test_run_parameters)
 
     # def test_step(self, test_adapter, test_run_parameters):
     #     super().test_step(test_adapter, test_run_parameters)
@@ -334,32 +336,32 @@ class TestPH99Adapter(_AdapterTester):
     # #     with pytest.raises(ParameterEmptyError, match=error_msg):
     # #         test_adapter.initialize_run_parameters()
 
-    # # def prepare_run_input(self, test_adapter, start_time, stop_time):
-    # #     """
-    # #     Overload this in your adapter test if you need to set required input parameters.
-    # #     This method is called directly before ``test_adapter.initialize_model_input``
-    # #     during tests.
-    # #     """
-    # #     test_adapter._parameters.generic("Start Time").value = start_time
-    # #     test_adapter._parameters.generic("Stop Time").value = stop_time
-    # #     timestep = np.timedelta64(30, "D")
-    # #     test_adapter._parameters.scalar(
-    # #         ("PH99", "timestep"), "s"
-    # #     ).value = timestep.item().total_seconds()
+    def prepare_run_input(self, test_adapter, start_time, stop_time):
+        """
+        Overload this in your adapter test if you need to set required input parameters.
+        This method is called directly before ``test_adapter.initialize_model_input``
+        during tests.
+        """
+        test_adapter._parameters.generic("Start Time").value = start_time
+        test_adapter._parameters.generic("Stop Time").value = stop_time
+        timestep = np.timedelta64(30, "D")
+        test_adapter._parameters.scalar(
+            ("PH99", "timestep"), "s"
+        ).value = timestep.item().total_seconds()
 
-    # #     npoints = (stop_time - start_time) // timestep + 1
-    # #     time_points_for_averages = create_time_points(
-    # #         start_time,
-    # #         stop_time - start_time,
-    # #         npoints,
-    # #         ParameterType.AVERAGE_TIMESERIES,
-    # #     )
-    # #     test_adapter._parameters.timeseries(
-    # #         ("Emissions", "CO2"),
-    # #         "GtCO2/a",
-    # #         time_points_for_averages,
-    # #         timeseries_type="average",
-    # #     ).values = np.zeros(npoints)
+        npoints = (stop_time - start_time) // timestep + 1
+        time_points = create_time_points(
+            start_time,
+            stop_time - start_time,
+            npoints,
+            "point",
+        )
+        test_adapter._parameters.timeseries(
+            ("Emissions", "CO2"),
+            "GtCO2/a",
+            time_points,
+            timeseries_type="point",
+        ).values = np.zeros(npoints)
 
     # # def test_openscm_standard_parameters_take_priority(self):
     # #     self._prepare_test_settings()

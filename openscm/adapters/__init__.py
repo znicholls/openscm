@@ -232,6 +232,10 @@ class Adapter(metaclass=ABCMeta):
             if p.version > 1:
                 warnings.warn("Setting {} overrides setting with {}".format(name, p.name))
 
+    @property
+    def _inverse_openscm_standard_parameter_mappings(self):
+        return {v: k for k, v in self._openscm_standard_parameter_mappings.items()}
+    
     @abstractmethod
     def _initialize_model(self) -> None:
         """

@@ -35,29 +35,29 @@ class _AdapterTester(metaclass=ABCMeta):
         output_parameters = ParameterSet()
         tadapter = self.tadapter(parameters, output_parameters)
 
-    # @abstractmethod
-    # def test_shutdown(self, test_adapter):
-    #     """
-    #     Test the adapter can be shutdown.
+    @abstractmethod
+    def test_shutdown(self, test_adapter):
+        """
+        Test the adapter can be shutdown.
 
-    #     Extra tests should be added depending on what the adapter should actually
-    #     do on shutdown.
-    #     """
-    #     del test_adapter
+        Extra tests should be added depending on what the adapter should actually
+        do on shutdown.
+        """
+        del test_adapter
 
-    # @abstractmethod
-    # def test_run(self, test_adapter, test_run_parameters):
-    #     """
-    #     Test that running the model does as intended.
+    @abstractmethod
+    def test_run(self, test_adapter, test_run_parameters):
+        """
+        Test that running the model does as intended.
 
-    #     Extra tests should be added depending on what the adapter should actually
-    #     do when run with the parameters provided by `test_run_parameters`.
-    #     """
-    #     self.prepare_run_input(
-    #         test_adapter, test_run_parameters.start_time, test_run_parameters.stop_time
-    #     )
-    #     test_adapter.reset()
-    #     test_adapter.run()
+        Extra tests should be added depending on what the adapter should actually
+        do when run with the parameters provided by `test_run_parameters`.
+        """
+        self.prepare_run_input(
+            test_adapter, test_run_parameters.start_time, test_run_parameters.stop_time
+        )
+        test_adapter.reset()
+        test_adapter.run()
 
     # @abstractmethod
     # def test_step(self, test_adapter, test_run_parameters):

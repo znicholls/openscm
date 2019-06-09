@@ -33,6 +33,25 @@ class PH99(Adapter):
     _base_time = np.datetime64("1750-01-01")
     """Base time. PH99 has no concept of datetimes so we make it up here"""
 
+    _openscm_standard_parameter_mappings = {
+        "Equilibrium Climate Sensitivity": "_ecs",
+        "Radiative Forcing 2xCO2": "_f2xco2",
+        "Start Time": "start_time",
+        "Stop Time": "stop_time",
+        "Step Length": "timestep",
+        ("Atmospheric Concentrations", "CO2"): "concentrations",
+        ("Cumulative Emissions", "CO2"): "cumulative_emissions",
+        ("Emissions", "CO2"): "emissions",
+        ("Surface Temperature"): "temperatures",
+    }
+
+    _internal_timeseries_conventions = {
+        "concentrations": "point",
+        "cumulative_emissions": "point",
+        "emissions": "point",
+        "temperatures": "point",
+    }
+
     @property
     def name(self):
         return "PH99"
@@ -40,6 +59,65 @@ class PH99(Adapter):
     @property
     def _ecs(self):
         return self._parameters.scalar("Equilibrium Climate Sensitivity", "delta_degC").value * _unit_registry("delta_degC")
+
+    def _initialize_model(self) -> None:
+        """
+        Initialize the model.
+        """
+        self.model = PH99Model()  # pylint: disable=attribute-defined-outside-init
+        imap = self._inverse_openscm_standard_parameter_mappings
+
+        for att in dir(self.model):
+            if not att.startswith(("_", "emissions_idx")):
+                value = getattr(self.model, att)
+                if callable(value):
+                    continue
+
+                try:
+                    value.units
+                except AttributeError:
+                    self._add_parameter_view(
+                        (self.name, att),
+                        value,
+                    )
+                    if att in imap:
+                        openscm_name = imap[att]
+                        self._add_parameter_view(openscm_name)
+                if isinstance(value.magnitude, np.ndarray):
+                    if att != "emissions":
+                        continue
+                    self._add_parameter_view(
+                        (self.name, att),
+                        unit=str(value.units),
+                        timeseries_type=self._internal_timeseries_conventions[att],
+                    )
+                    if att in imap:
+                        openscm_name = imap[att]
+                        self._add_parameter_view(
+                            openscm_name,
+                            unit=str(value.units),
+                            timeseries_type=self._internal_timeseries_conventions[att],
+                        )
+                else:
+                    if att == "timestep":
+                        units = "s"
+                        mag = value.to(units).magnitude
+                        if int(self.model.timestep.magnitude) != int(mag):
+                            warnings.warn("Rounding {} timestep to nearest integer".format(self.name))
+                            value = int(mag) * _unit_registry(units)
+                            self.model.timestep = value
+
+                    self._add_parameter_view(
+                        (self.name, att),
+                        value.magnitude,
+                        unit=str(value.units),
+                    )
+                    if att in imap:
+                        openscm_name = imap[att]
+                        if openscm_name in ("Start Time", "Stop Time", "Step Length"):
+                            self._add_parameter_view(openscm_name)
+                        else:
+                            self._add_parameter_view(openscm_name, unit=str(value.units))
 
     def _get_time_points(self, timeseries_type: Union[ParameterType, str]) -> np.ndarray:
         if self._timeseries_time_points_require_update():
@@ -98,47 +176,6 @@ class PH99(Adapter):
         except ParameterEmptyError:
             pass
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    def _initialize_model(self) -> None:
-        """
-        Initialize the model.
-        """
-        self.model = PH99Model()  # pylint: disable=attribute-defined-outside-init
-
-        for att in dir(self.model):
-            if not att.startswith(("_", "emissions_idx")):
-                value = getattr(self.model, att)
-                if callable(value):
-                    continue
-
-                name = self._get_openscm_name(att)
-                if isinstance(value.magnitude, np.ndarray):
-                    continue
-                self._set_default_value(name, value)
-
-        self._initialize_openscm_standard_parameters()
-
     def _set_default_value(self, name, value):
         if name == ("PH99", "timestep"):
             units = "s"
@@ -152,6 +189,16 @@ class PH99(Adapter):
         p = self._parameters.scalar(name, str(value.units))
         if p.empty:
             p.value = value.magnitude
+
+
+
+
+
+
+
+
+
+
 
     def _initialize_openscm_standard_parameters(self):
         start_time = self._parameters.generic("Start Time")
@@ -283,18 +330,6 @@ class PH99(Adapter):
 
     def _shutdown(self) -> None:
         pass
-
-    def _get_openscm_name(self, name):  # pylint: disable=no-self-use
-        mappings = {
-            "concentrations": ("Atmospheric Concentrations", "CO2"),
-            "cumulative_emissions": ("Cumulative Emissions", "CO2"),
-            "emissions": ("Emissions", "CO2"),
-            "temperatures": ("Surface Temperature"),
-        }
-        try:
-            return mappings[name]
-        except KeyError:
-            return ("PH99", name)
 
     def _run(self) -> None:
         self.model.initialise_timeseries()
