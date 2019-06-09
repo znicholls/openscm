@@ -121,9 +121,9 @@ class Adapter(metaclass=ABCMeta):
         if value is not None and (p.empty or overwrite):
             # match parameterview to value
             self._set_parameter_value(p, value)
-        elif not p.empty:
+        elif not p.empty and (time_points is not None and timeseries_type in (ParameterType.POINT_TIMESERIES, ParameterType.AVERAGE_TIMESERIES)):
             # match model to parameter view
-            self._update_model(full_name)
+            self._update_model(full_name, p)
 
         self._parameter_versions[full_name] = p.version
 
@@ -144,7 +144,7 @@ class Adapter(metaclass=ABCMeta):
         `self._parameters``, which is not necessarily the same as the state which was 
         used at the start of the last run.
         """
-        self._current_time = self._parameters.generic("Start Time").value
+        self._current_time = self._start_time
         self._set_model_from_parameters()
         self._reset()
 

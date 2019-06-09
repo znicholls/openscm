@@ -41,7 +41,7 @@ class PH99(Adapter):
         ("Atmospheric Concentrations", "CO2"): "concentrations",
         ("Cumulative Emissions", "CO2"): "cumulative_emissions",
         ("Emissions", "CO2"): "emissions",
-        ("Surface Temperature"): "temperatures",
+        ("Surface Temperature Increase"): "temperatures",
     }
 
     _internal_timeseries_conventions = {
@@ -119,11 +119,10 @@ class PH99(Adapter):
                             self._add_parameter_view(openscm_name, unit=str(value.units))
 
         # set a stop time because PH99 model doesn't have one
-        stop_time = self._start_time + 500*self._period_length
-        self._add_parameter_view(
-            "Stop Time",
-            value=stop_time,
-        )
+        self._add_parameter_view("Stop Time")
+        if self._parameter_views["Stop Time"].empty:
+            self._parameter_views["Stop Time"].value = self._start_time + 500*self._period_length
+
 
     def _get_time_points(self, timeseries_type: Union[ParameterType, str]) -> np.ndarray:
         if self._timeseries_time_points_require_update():

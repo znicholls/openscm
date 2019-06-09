@@ -154,7 +154,7 @@ class PH99Model:  # pylint: disable=too-many-instance-attributes
         self._temperatures = value.to(self._temperatures_units).magnitude
 
     # have to initialise like this to avoid ambiguity...
-    _temperatures_tmp = _unit_registry.Quantity(np.array([np.nan]), "degC")
+    _temperatures_tmp = _unit_registry.Quantity(np.array([np.nan]), "delta_degC")
     _temperatures_units = _temperatures_tmp.units
     _temperatures = _temperatures_tmp.magnitude
 
@@ -236,7 +236,7 @@ class PH99Model:  # pylint: disable=too-many-instance-attributes
         self._mu = value.to(self._mu_units).magnitude
 
     # have to initialise like this to avoid ambiguity...
-    _mu_tmp = _unit_registry.Quantity(8.7 * 10 ** -2, "degC/yr")
+    _mu_tmp = _unit_registry.Quantity(8.7 * 10 ** -2, "delta_degC/yr")
     _mu_units = _mu_tmp.units
     _mu = _mu_tmp.magnitude
 
@@ -272,7 +272,7 @@ class PH99Model:  # pylint: disable=too-many-instance-attributes
         self._t1 = value.to(self._t1_units).magnitude
 
     # have to initialise like this to avoid ambiguity...
-    _t1_tmp = _unit_registry.Quantity(14.6, "degC")
+    _t1_tmp = _unit_registry.Quantity(14.6, "delta_degC")
     _t1_units = _t1_tmp.units
     _t1 = _t1_tmp.magnitude
 
@@ -364,7 +364,7 @@ class PH99Model:  # pylint: disable=too-many-instance-attributes
 
         temperatures_init = deepcopy(initialiser)
         temperatures_init[0] = 14.6
-        self.temperatures = _unit_registry.Quantity(temperatures_init, "degC")
+        self.temperatures = _unit_registry.Quantity(temperatures_init, "delta_degC")
 
     def run(self) -> None:
         """
