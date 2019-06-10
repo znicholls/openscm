@@ -276,7 +276,7 @@ class _Parameter:
                         float("NaN"),
                     )
                     self.time_points = np.array(time_points, copy=True)
-                    
+
         if self.parameter_type not in (ParameterType.SCALAR, ParameterType.GENERIC):
             if time_points is not None:
                 try:

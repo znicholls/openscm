@@ -18,9 +18,14 @@ class TestPH99Adapter(_AdapterTester):
 
     def test_initialize(self, test_adapter):
         super().test_initialize(test_adapter)
-        timestep = int((1*_unit_registry("yr")).to("s").magnitude)
-        assert test_adapter._parameters.scalar(("PH99", "timestep"), "s").value == timestep
-        assert test_adapter._parameters.scalar(("PH99", "b"), "ppm / (GtC * yr)").value == 1.51 * 10 ** -3
+        timestep = int((1 * _unit_registry("yr")).to("s").magnitude)
+        assert (
+            test_adapter._parameters.scalar(("PH99", "timestep"), "s").value == timestep
+        )
+        assert (
+            test_adapter._parameters.scalar(("PH99", "b"), "ppm / (GtC * yr)").value
+            == 1.51 * 10 ** -3
+        )
         assert test_adapter._parameters.generic("Start Time").empty
         assert test_adapter._parameters.generic("Step Length").empty
 
@@ -42,19 +47,17 @@ class TestPH99Adapter(_AdapterTester):
 
         time_points = np.array(
             [
-                np.datetime64("{}-01-01".format(y)).astype("datetime64[s]").astype(float)
+                np.datetime64("{}-01-01".format(y))
+                .astype("datetime64[s]")
+                .astype(float)
                 for y in range(2010, 2091, 10)
             ]
         )
-        check_args_concs = [
-            ("Atmospheric Concentrations", "CO2"),
-            "ppm",
-            time_points
-        ]
+        check_args_concs = [("Atmospheric Concentrations", "CO2"), "ppm", time_points]
         check_args_temperature = [
             "Surface Temperature Increase",
             "delta_degC",
-            time_points
+            time_points,
         ]
         assert output.timeseries(*check_args_concs).empty
         assert output.timeseries(*check_args_temperature).empty
@@ -83,19 +86,17 @@ class TestPH99Adapter(_AdapterTester):
 
         time_points = np.array(
             [
-                np.datetime64("{}-01-01".format(y)).astype("datetime64[s]").astype(float)
+                np.datetime64("{}-01-01".format(y))
+                .astype("datetime64[s]")
+                .astype(float)
                 for y in range(2010, 2091, 10)
             ]
         )
-        check_args_conc = [
-            ("Atmospheric Concentrations", "CO2"),
-            "ppm",
-            time_points
-        ]
+        check_args_conc = [("Atmospheric Concentrations", "CO2"), "ppm", time_points]
         check_args_temperature = [
             "Surface Temperature Increase",
             "delta_degC",
-            time_points
+            time_points,
         ]
 
         assert output.timeseries(*check_args_conc).empty
@@ -112,14 +113,10 @@ class TestPH99Adapter(_AdapterTester):
         test_adapter.step()
         test_adapter.step()
         first_two_steps_conc = output.timeseries(
-            ("Atmospheric Concentrations", "CO2"),
-            "ppm",
-            time_points[:2],
+            ("Atmospheric Concentrations", "CO2"), "ppm", time_points[:2]
         ).values
         first_two_steps_temperature = output.timeseries(
-            "Surface Temperature Increase",
-            "delta_degC",
-            time_points[:2],
+            "Surface Temperature Increase", "delta_degC", time_points[:2]
         ).values
         # currently failing
         # for some reason accessing the first two elements of a `Timeseries` resets everything to zero
@@ -285,9 +282,7 @@ class TestPH99Adapter(_AdapterTester):
             timeseries_type="point",
         ).values
         np.testing.assert_allclose(
-            temp_2017_2018,
-            np.array([15.148409452339525, 15.15382326154207]),
-            rtol=1e-5,
+            temp_2017_2018, np.array([15.148409452339525, 15.15382326154207]), rtol=1e-5
         )
 
     def test_run_no_emissions_error(self, test_adapter):
@@ -297,7 +292,7 @@ class TestPH99Adapter(_AdapterTester):
         test_adapter._parameters.generic("Stop Time").value = np.datetime64(
             "2013-01-01"
         )
-        
+
         error_msg = re.escape("PH99 requires ('Emissions', 'CO2') in order to run")
         with pytest.raises(ParameterEmptyError, match=error_msg):
             test_adapter.reset()
@@ -317,16 +312,10 @@ class TestPH99Adapter(_AdapterTester):
 
         npoints = (stop_time - start_time) // timestep + 1
         time_points = create_time_points(
-            start_time,
-            stop_time - start_time,
-            npoints,
-            "point",
+            start_time, stop_time - start_time, npoints, "point"
         )
         test_adapter._parameters.timeseries(
-            ("Emissions", "CO2"),
-            "GtCO2/a",
-            time_points,
-            timeseries_type="point",
+            ("Emissions", "CO2"), "GtCO2/a", time_points, timeseries_type="point"
         ).values = np.zeros(npoints)
 
     def test_openscm_standard_parameters_take_priority(self):
@@ -354,8 +343,7 @@ class TestPH99Adapter(_AdapterTester):
         tadapter.reset()
 
         assert_pint_equal(
-            tadapter.model.alpha,
-            tadapter.model.mu * np.log(2) / self._test_ecs,
+            tadapter.model.alpha, tadapter.model.mu * np.log(2) / self._test_ecs
         )
 
         # currenty failing, should we also update the parameter set if there's conflicts?
@@ -395,8 +383,7 @@ class TestPH99Adapter(_AdapterTester):
         tadapter.reset()
 
         assert_pint_equal(
-            tadapter.model.alpha,
-            tadapter.model.mu * np.log(2) / self._test_ecs,
+            tadapter.model.alpha, tadapter.model.mu * np.log(2) / self._test_ecs
         )
         assert_pint_equal(
             tadapter.model.mu,
@@ -425,10 +412,14 @@ class TestPH99Adapter(_AdapterTester):
         self._test_rf2xco2 = 3.5 * _unit_registry("W/m^2")
 
         self._test_drivers.scalar(
-            ("Equilibrium Climate Sensitivity",), str(self._test_ecs.units), region=("World",)
+            ("Equilibrium Climate Sensitivity",),
+            str(self._test_ecs.units),
+            region=("World",),
         ).value = self._test_ecs.magnitude
         self._test_drivers.scalar(
-            ("Radiative Forcing 2xCO2",), str(self._test_rf2xco2.units), region=("World",)
+            ("Radiative Forcing 2xCO2",),
+            str(self._test_rf2xco2.units),
+            region=("World",),
         ).value = self._test_rf2xco2.magnitude
 
         self._test_drivers.generic("Start Time").value = self._test_start_time

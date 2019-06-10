@@ -13,7 +13,7 @@ variable naming. Original comments are marked by "Original:".
 
 from collections import namedtuple
 from math import log2
-from typing import Any, Optional, Union, Tuple
+from typing import Any, Optional, Tuple, Union
 
 import numpy as np
 
@@ -118,27 +118,24 @@ class DICE(Adapter):
     @property
     def name(self):
         return "DICE"
-    
+
     def _initialize_model(self) -> None:
         """
         Initialize the model.
         """
-        parameter_names = (
-            list(MODEL_PARAMETER_DEFAULTS.keys())
-            + [
-                "mat",
-                "ml",
-                "mu",
-                "tatm",
-                "tocean",
-                "forc",
-                "b11",
-                "b21",
-                "b22",
-                "b32",
-                "b33",
-            ]
-        )
+        parameter_names = list(MODEL_PARAMETER_DEFAULTS.keys()) + [
+            "mat",
+            "ml",
+            "mu",
+            "tatm",
+            "tocean",
+            "forc",
+            "b11",
+            "b21",
+            "b22",
+            "b32",
+            "b33",
+        ]
         self._values = namedtuple("DICEViews", parameter_names)
 
         imap = self._inverse_openscm_standard_parameter_mappings
@@ -146,7 +143,7 @@ class DICE(Adapter):
             full_name = ("DICE", name)
             if len(settings) == 2:
                 default, unit = settings
-            
+
                 self._add_parameter_view(full_name, value=default, unit=unit)
                 setattr(self._values, name, self._parameter_views[full_name])
 
@@ -158,10 +155,7 @@ class DICE(Adapter):
             else:
                 default, unit, timeseries_type = settings
                 self._add_parameter_view(
-                    full_name, 
-                    value=default, 
-                    unit=unit,
-                    timeseries_type=timeseries_type,
+                    full_name, value=default, unit=unit, timeseries_type=timeseries_type
                 )
                 setattr(self._values, name, self._parameter_views[full_name])
 
@@ -169,27 +163,25 @@ class DICE(Adapter):
                     openscm_name = imap[name]
                     # don't set default here, leave that for later
                     self._add_parameter_view(
-                        openscm_name, 
-                        unit=unit,
-                        timeseries_type=timeseries_type,
+                        openscm_name, unit=unit, timeseries_type=timeseries_type
                     )
 
-    def _get_time_points(self, timeseries_type: Union[ParameterType, str]) -> np.ndarray:
+    def _get_time_points(
+        self, timeseries_type: Union[ParameterType, str]
+    ) -> np.ndarray:
         if self._timeseries_time_points_require_update():
+
             def get_time_points(tt):
                 return create_time_points(
-                    self._start_time,
-                    self._period_length,
-                    self._timestep_count,
-                    tt
+                    self._start_time, self._period_length, self._timestep_count, tt
                 )
 
             self._time_points = get_time_points("point")
             self._time_points_for_averages = get_time_points("average")
-            
+
         return (
-            self._time_points 
-            if timeseries_type in ("point", ParameterType.POINT_TIMESERIES) 
+            self._time_points
+            if timeseries_type in ("point", ParameterType.POINT_TIMESERIES)
             else self._time_points_for_averages
         )
 
@@ -214,10 +206,9 @@ class DICE(Adapter):
         except:
             stop_time = self._parameter_views[("DICE", "stop_time")].value
 
-        return int(
-            (stop_time - self._start_time)
-            / self._period_length
-        ) + 1  # include self._stop_time
+        return (
+            int((stop_time - self._start_time) / self._period_length) + 1
+        )  # include self._stop_time
 
     def _timeseries_time_points_require_update(self):
         try:
@@ -226,17 +217,16 @@ class DICE(Adapter):
         except AttributeError:
             return True
 
-        names_to_check = [
-            "Start Time",
-            "Stop Time",
-            "Step Length",
-        ]
+        names_to_check = ["Start Time", "Stop Time", "Step Length"]
         for n in names_to_check:
             if self._parameter_views[n].version > self._parameter_versions[n]:
                 return True
             if n in self._openscm_standard_parameter_mappings:
                 model_n = (self.name, self._openscm_standard_parameter_mappings[n])
-                if self._parameter_views[model_n].version > self._parameter_versions[model_n]:
+                if (
+                    self._parameter_views[model_n].version
+                    > self._parameter_versions[model_n]
+                ):
                     return True
         return False
 
@@ -244,20 +234,21 @@ class DICE(Adapter):
         try:
             values = self._get_parameter_value(para)
             if name in self._openscm_standard_parameter_mappings:
-                model_name = (self.name, self._openscm_standard_parameter_mappings[name])
+                model_name = (
+                    self.name,
+                    self._openscm_standard_parameter_mappings[name],
+                )
                 self._check_derived_paras([model_name], name)
                 setattr(self._values, model_name[1], para)
-                self._set_parameter_value(
-                    self._parameter_views[model_name], values
-                )
+                self._set_parameter_value(self._parameter_views[model_name], values)
             else:
                 assert name[0] == self.name, "..."
                 setattr(self._values, name[1], para)
 
         except ParameterEmptyError:
             pass
-    
-    def _reset(self) -> None:        
+
+    def _reset(self) -> None:
         self._set_output_views()
         self._timestep = 0
         v = self._values  # just for convenience
@@ -296,50 +287,50 @@ class DICE(Adapter):
 
         # Original: "Carbon concentration increase in atmosphere (GtC from 1750)"
         self._values.mat = self._output.timeseries(
-            ("Pool", "CO2", "Atmosphere"), 
-            "GtC", 
-            self._get_time_points("point"), 
-            timeseries_type="point"
+            ("Pool", "CO2", "Atmosphere"),
+            "GtC",
+            self._get_time_points("point"),
+            timeseries_type="point",
         )
 
         # Original: "Carbon concentration increase in lower oceans (GtC from 1750)"
         self._values.ml = self._output.timeseries(
             ("Pool", "CO2", "Ocean", "lower"),
             "GtC",
-            self._get_time_points("point"), 
-            timeseries_type="point"
+            self._get_time_points("point"),
+            timeseries_type="point",
         )
 
         # Original: "Carbon concentration increase in shallow oceans (GtC from 1750)"
         self._values.mu = self._output.timeseries(
             ("Pool", "CO2", "Ocean", "shallow"),
             "GtC",
-            self._get_time_points("point"), 
-            timeseries_type="point"
+            self._get_time_points("point"),
+            timeseries_type="point",
         )
 
         # Original: "Increase temperature of atmosphere (degrees C from 1900)"
         self._values.tatm = self._output.timeseries(
             ("Surface Temperature Increase"),
             "delta_degC",
-            self._get_time_points("point"), 
-            timeseries_type="point"
+            self._get_time_points("point"),
+            timeseries_type="point",
         )
 
         # Original: "Increase in temperatureof lower oceans (degrees from 1900)"
         self._values.tocean = self._output.timeseries(
             ("Ocean Temperature Increase"),
             "delta_degC",
-            self._get_time_points("point"), 
-            timeseries_type="point"
+            self._get_time_points("point"),
+            timeseries_type="point",
         )
 
         # Original: "Increase in radiative forcing (watts per m2 from 1900)"
         self._values.forc = self._output.timeseries(
             ("Radiative Forcing", "CO2"),
             "W/m^2",
-            self._get_time_points("average"), 
-            timeseries_type="average"
+            self._get_time_points("average"),
+            timeseries_type="average",
         )
 
     def _shutdown(self) -> None:

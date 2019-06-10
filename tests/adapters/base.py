@@ -4,6 +4,7 @@ import pytest
 
 from openscm.core.parameterset import ParameterSet
 
+
 class _AdapterTester(metaclass=ABCMeta):
     """
     Base class for adapter testing.
@@ -14,6 +15,7 @@ class _AdapterTester(metaclass=ABCMeta):
     whilst giving authors the ability to tweak the tests as necessary for their specific
     adapter.
     """
+
     @abstractproperty
     def tadapter(self):
         """
@@ -101,10 +103,12 @@ class _AdapterTester(metaclass=ABCMeta):
             "K",
             np.array(
                 [
-                    np.datetime64("{}-01-01".format(y).astype("datetime64[s]").astype(float))
+                    np.datetime64(
+                        "{}-01-01".format(y).astype("datetime64[s]").astype(float)
+                    )
                     for y in range(2010, 2090, 10)
                 ]
-            )
+            ),
         ]
         assert output.timeseries(*check_args).empty
 
@@ -139,10 +143,12 @@ class _AdapterTester(metaclass=ABCMeta):
             "K",
             np.array(
                 [
-                    np.datetime64("{}-01-01".format(y).astype("datetime64[s]").astype(float))
+                    np.datetime64(
+                        "{}-01-01".format(y).astype("datetime64[s]").astype(float)
+                    )
                     for y in range(2010, 2091, 10)
                 ]
-            )
+            ),
         ]
         assert output.timeseries(*check_args).empty
 
@@ -159,12 +165,16 @@ class _AdapterTester(metaclass=ABCMeta):
             "K",
             np.array(
                 [
-                    np.datetime64("{}-01-01".format(y).astype("datetime64[s]").astype(float))
+                    np.datetime64(
+                        "{}-01-01".format(y).astype("datetime64[s]").astype(float)
+                    )
                     for y in range(2010, 2031, 10)
                 ]
-            )
+            ),
         )
-        np.testing.assert_allclose(first_run_temperature[:2], first_two_steps_temperature)
+        np.testing.assert_allclose(
+            first_run_temperature[:2], first_two_steps_temperature
+        )
 
         test_adapter.reset()
         assert output.timeseries(*check_args).empty
@@ -192,7 +202,9 @@ class _AdapterTester(metaclass=ABCMeta):
         parameters.generic("Start Time").value = np.datetime64("1850-01-01")
         parameters.generic("Stop Time").value = np.datetime64("2100-01-01")
         ecs_magnitude = 3.12
-        parameters.scalar("Equilibrium Climate Sensitivity", "delta_degC").value = ecs_magnitude
+        parameters.scalar(
+            "Equilibrium Climate Sensitivity", "delta_degC"
+        ).value = ecs_magnitude
 
         self.prepare_run_input(
             test_adapter,
@@ -207,9 +219,7 @@ class _AdapterTester(metaclass=ABCMeta):
         # If you're testing the parameters are used as intended, it might look
         # something like:
         assert (
-            parameters.scalar(
-                ("Model name", "model ecs parameter"), "delta_degC"
-            ).value
+            parameters.scalar(("Model name", "model ecs parameter"), "delta_degC").value
             == ecs_magnitude  # make sure OpenSCM ECS value was used preferentially to the model's ecs
         )
 

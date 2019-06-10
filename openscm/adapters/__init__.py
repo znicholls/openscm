@@ -13,7 +13,6 @@ from ..core.parameterset import ParameterSet
 from ..core.time import ExtrapolationType, InterpolationType, create_time_points
 from ..errors import AdapterNeedsModuleError
 
-
 _loaded_adapters: Dict[str, type] = {}
 
 
@@ -79,7 +78,6 @@ class Adapter(metaclass=ABCMeta):
         self._direct_set = False
         self._initialize_model()
 
-
     def __del__(self) -> None:
         """
         Destructor.
@@ -87,8 +85,8 @@ class Adapter(metaclass=ABCMeta):
         self._shutdown()
 
     def _add_parameter_view(
-        self, 
-        full_name: HierarchicalName, 
+        self,
+        full_name: HierarchicalName,
         value: Optional[Any] = None,
         overwrite: bool = False,
         unit: Optional[str] = None,
@@ -110,10 +108,7 @@ class Adapter(metaclass=ABCMeta):
             p = self._parameters.scalar(full_name, unit, region=region)
         else:
             p = self._parameters.timeseries(
-                full_name, 
-                unit, 
-                region=region,
-                timeseries_type=timeseries_type,
+                full_name, unit, region=region, timeseries_type=timeseries_type
             )
 
         self._parameter_views[full_name] = p
@@ -148,7 +143,6 @@ class Adapter(metaclass=ABCMeta):
         self._set_model_from_parameters()
         self._reset()
 
-
     def run(self) -> None:
         """
         Run the model over the full time range.
@@ -170,12 +164,11 @@ class Adapter(metaclass=ABCMeta):
     def _set_model_from_parameters(self):
         update_time_points = self._timeseries_time_points_require_update()
         for name, view in self._get_view_iterator():
-            update_time = (
-                update_time_points 
-                and self._parameter_views[name].parameter_type in (
-                    ParameterType.POINT_TIMESERIES, 
-                    ParameterType.AVERAGE_TIMESERIES
-                )
+            update_time = update_time_points and self._parameter_views[
+                name
+            ].parameter_type in (
+                ParameterType.POINT_TIMESERIES,
+                ParameterType.AVERAGE_TIMESERIES,
             )
             if update_time:
                 current_view = self._parameter_views[name]
@@ -188,10 +181,7 @@ class Adapter(metaclass=ABCMeta):
                     interpolation="linear",  # TODO: take these from ParameterSet
                     extrapolation="none",
                 )
-            update_para = (
-                self._parameter_versions[name] < view.version
-                or update_time
-            )
+            update_para = self._parameter_versions[name] < view.version or update_time
             if update_para:
                 if isinstance(name, tuple) and name[0] == self.name:
                     self._direct_set = True
@@ -203,15 +193,14 @@ class Adapter(metaclass=ABCMeta):
         view_iterator = self._parameter_views.items()
         view_iterator = sorted(view_iterator, key=lambda s: len(s[0]))
         generic_views = [
-            v for v in view_iterator 
-            if v[1].parameter_type == ParameterType.GENERIC
+            v for v in view_iterator if v[1].parameter_type == ParameterType.GENERIC
         ]
         scalar_views = [
-            v for v in view_iterator 
-            if v[1].parameter_type == ParameterType.SCALAR
+            v for v in view_iterator if v[1].parameter_type == ParameterType.SCALAR
         ]
         other_views = [
-            v for v in view_iterator 
+            v
+            for v in view_iterator
             if v[1].parameter_type not in (ParameterType.GENERIC, ParameterType.SCALAR)
         ]
         return generic_views + scalar_views + other_views
@@ -230,12 +219,14 @@ class Adapter(metaclass=ABCMeta):
         for para in paras:
             p = self._parameter_views[para]
             if p.version > 1:
-                warnings.warn("Setting {} overrides setting with {}".format(name, p.name))
+                warnings.warn(
+                    "Setting {} overrides setting with {}".format(name, p.name)
+                )
 
     @property
     def _inverse_openscm_standard_parameter_mappings(self):
         return {v: k for k, v in self._openscm_standard_parameter_mappings.items()}
-    
+
     @abstractmethod
     def _initialize_model(self) -> None:
         """
@@ -244,7 +235,6 @@ class Adapter(metaclass=ABCMeta):
         Called only once, during :func:`__init__`.
         """
 
-    
     @abstractmethod
     def _reset(self) -> None:
         """
@@ -270,7 +260,9 @@ class Adapter(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def _get_time_points(self, timeseries_type: Union[ParameterType, str]) -> np.ndarray:
+    def _get_time_points(
+        self, timeseries_type: Union[ParameterType, str]
+    ) -> np.ndarray:
         """
         Get time points for timeseries views.
 
@@ -299,7 +291,7 @@ class Adapter(metaclass=ABCMeta):
         """
         Determine if the timeseries view time points require updating
         """
-    
+
     @abstractproperty
     def name(self):
         """

@@ -409,7 +409,7 @@ def test_adapter(request):
     output_parameters = ParameterSet()
     yield request.cls.tadapter(parameters, output_parameters)
     # try:
-        
+
     # except TypeError:
     #     pytest.skip("{} cannot be instantiated".format(str(request.cls.tadapter)))
 

@@ -36,7 +36,7 @@ def _run_and_compare(test_adapter, filename, timestep_count=None):
     if timestep_count == len(original_data):
         test_adapter.run()
     else:
-        for i in range(timestep_count-1):
+        for i in range(timestep_count - 1):
             test_adapter.step()
 
     output_parameters = [
@@ -51,10 +51,7 @@ def _run_and_compare(test_adapter, filename, timestep_count=None):
         tp = time_points[:-1] if timeseries_type == "point" else time_points
         np.testing.assert_allclose(
             test_adapter._output.timeseries(
-                name,
-                unit,
-                tp,
-                timeseries_type=timeseries_type,
+                name, unit, tp, timeseries_type=timeseries_type
             ).values,
             original_data[original_name][:timestep_count],
             err_msg="Not matching original results for variable '{}'".format(
@@ -71,15 +68,25 @@ class TestMyAdapter(_AdapterTester):
         super().test_initialize(test_adapter)
         assert test_adapter._values is not None
         assert test_adapter._values.c3.value == 0.09175
-        assert test_adapter._parameters.scalar(("DICE", "tatm0"), "delta_degC").value == 0.8
-        assert test_adapter._parameters.scalar(("DICE", "t2xco2"), "delta_degC").value == 2.9
-        assert test_adapter._parameters.scalar(("Equilibrium Climate Sensitivity"), "delta_degC").empty
+        assert (
+            test_adapter._parameters.scalar(("DICE", "tatm0"), "delta_degC").value
+            == 0.8
+        )
+        assert (
+            test_adapter._parameters.scalar(("DICE", "t2xco2"), "delta_degC").value
+            == 2.9
+        )
+        assert test_adapter._parameters.scalar(
+            ("Equilibrium Climate Sensitivity"), "delta_degC"
+        ).empty
 
         with pytest.raises(DimensionalityError):
             test_adapter._parameters.timeseries(
                 ("Emissions", "CO2"),
                 "GtN2O/a",
-                np.array([np.datetime64("{}-01-01".format(y)) for y in [2010, 2020, 2030]]),
+                np.array(
+                    [np.datetime64("{}-01-01".format(y)) for y in [2010, 2020, 2030]]
+                ),
                 timeseries_type="average",
                 extrapolation="linear",
             )
@@ -110,7 +117,9 @@ class TestMyAdapter(_AdapterTester):
         super().test_step(test_adapter, test_run_parameters)
 
     def test_match_original_step(self, test_adapter):
-        _run_and_compare(test_adapter, "tests/data/dice/original_results.csv", timestep_count=5)
+        _run_and_compare(
+            test_adapter, "tests/data/dice/original_results.csv", timestep_count=5
+        )
 
     def test_run_reset_run_same(self, test_adapter, test_run_parameters):
         output = test_adapter._output
@@ -121,26 +130,26 @@ class TestMyAdapter(_AdapterTester):
 
         time_points = np.array(
             [
-                np.datetime64("{}-01-01".format(y)).astype("datetime64[s]").astype(float)
+                np.datetime64("{}-01-01".format(y))
+                .astype("datetime64[s]")
+                .astype(float)
                 for y in range(2010, 2091, 10)
             ]
         )
-        check_args_rf = [
-            ("Radiative Forcing", "CO2"),
-            "W/m^2",
-            time_points
-        ]
+        check_args_rf = [("Radiative Forcing", "CO2"), "W/m^2", time_points]
         check_args_temperature = [
             "Surface Temperature Increase",
             "delta_degC",
-            time_points
+            time_points,
         ]
         assert output.timeseries(*check_args_rf, timeseries_type="average").empty
         assert output.timeseries(*check_args_temperature).empty
 
         test_adapter.reset()
         test_adapter.run()
-        first_run_rf = output.timeseries(*check_args_rf, timeseries_type="average").values
+        first_run_rf = output.timeseries(
+            *check_args_rf, timeseries_type="average"
+        ).values
         first_run_temperature = output.timeseries(*check_args_temperature).values
 
         test_adapter.reset()
@@ -148,7 +157,9 @@ class TestMyAdapter(_AdapterTester):
         # assert output.timeseries(*check_args_rf, timeseries_type="average").empty
         # assert output.timeseries(*check_args_temperature).empty
         test_adapter.run()
-        second_run_rf = output.timeseries(*check_args_rf, timeseries_type="average").values
+        second_run_rf = output.timeseries(
+            *check_args_rf, timeseries_type="average"
+        ).values
         second_run_temperature = output.timeseries(*check_args_temperature).values
         np.testing.assert_allclose(first_run_temperature, second_run_temperature)
         np.testing.assert_allclose(first_run_rf, second_run_rf)
@@ -162,19 +173,17 @@ class TestMyAdapter(_AdapterTester):
 
         time_points = np.array(
             [
-                np.datetime64("{}-01-01".format(y)).astype("datetime64[s]").astype(float)
+                np.datetime64("{}-01-01".format(y))
+                .astype("datetime64[s]")
+                .astype(float)
                 for y in range(2010, 2091, 10)
             ]
         )
-        check_args_rf = [
-            ("Radiative Forcing", "CO2"),
-            "W/m^2",
-            time_points
-        ]
+        check_args_rf = [("Radiative Forcing", "CO2"), "W/m^2", time_points]
         check_args_temperature = [
             "Surface Temperature Increase",
             "delta_degC",
-            time_points
+            time_points,
         ]
 
         assert output.timeseries(*check_args_rf, timeseries_type="average").empty
@@ -182,7 +191,9 @@ class TestMyAdapter(_AdapterTester):
 
         test_adapter.reset()
         test_adapter.run()
-        first_run_rf = output.timeseries(*check_args_rf, timeseries_type="average").values
+        first_run_rf = output.timeseries(
+            *check_args_rf, timeseries_type="average"
+        ).values
         first_run_temperature = output.timeseries(*check_args_temperature).values
         test_adapter.reset()
         # currently failing
@@ -194,12 +205,10 @@ class TestMyAdapter(_AdapterTester):
             ("Radiative Forcing", "CO2"),
             "W/m^2",
             time_points[:3],
-            timeseries_type="average"
+            timeseries_type="average",
         ).values
         first_two_steps_temperature = output.timeseries(
-            "Surface Temperature Increase",
-            "delta_degC",
-            time_points[:2],
+            "Surface Temperature Increase", "delta_degC", time_points[:2]
         ).values
         # currently failing
         # for some reason accessing the first two elements of a `Timeseries` resets everything to zero
@@ -212,7 +221,9 @@ class TestMyAdapter(_AdapterTester):
         # assert output.timeseries(*check_args_rf, timeseries_type="average").empty
         # assert output.timeseries(*check_args_temperature).empty
         test_adapter.run()
-        second_run_rf = output.timeseries(*check_args_rf, timeseries_type="average").values
+        second_run_rf = output.timeseries(
+            *check_args_rf, timeseries_type="average"
+        ).values
         second_run_temperature = output.timeseries(*check_args_temperature).values
 
         np.testing.assert_allclose(first_run_rf, second_run_rf)
@@ -225,8 +236,10 @@ class TestMyAdapter(_AdapterTester):
         parameters.generic("Start Time").value = np.datetime64("1850-01-01")
         parameters.generic("Stop Time").value = np.datetime64("2100-01-01")
         ecs_magnitude = 3.12
-        parameters.scalar("Equilibrium Climate Sensitivity", "delta_degC").value = ecs_magnitude
-        parameters.scalar(("DICE", "t2xco2"), "delta_degC").value = 2*ecs_magnitude
+        parameters.scalar(
+            "Equilibrium Climate Sensitivity", "delta_degC"
+        ).value = ecs_magnitude
+        parameters.scalar(("DICE", "t2xco2"), "delta_degC").value = 2 * ecs_magnitude
 
         self.prepare_run_input(
             test_adapter,
@@ -239,10 +252,7 @@ class TestMyAdapter(_AdapterTester):
         # make sure OpenSCM ECS value was used preferentially to the model's t2xco2
         assert test_adapter._values.t2xco2.value == ecs_magnitude
         assert (
-            parameters.scalar(
-                ("DICE", "t2xco2"), "delta_degC"
-            ).value
-            == ecs_magnitude  
+            parameters.scalar(("DICE", "t2xco2"), "delta_degC").value == ecs_magnitude
         )
 
         # currently failing

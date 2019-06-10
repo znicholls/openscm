@@ -225,7 +225,12 @@ class ParameterSet:
         )
         parameter.attempt_read(timeseries_type, unit, time_points)
         return TimeseriesView(
-            parameter, unit, timeseries_type, interpolation, extrapolation, time_points=time_points
+            parameter,
+            unit,
+            timeseries_type,
+            interpolation,
+            extrapolation,
+            time_points=time_points,
         )  # TimeseriesView
 
     def generic(
