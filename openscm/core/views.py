@@ -235,6 +235,13 @@ class ScalarView(ParameterInfo):
         """
         return "View of scalar {}".format(str(self._parameter))
 
+    @property
+    def unit(self) -> Optional[str]:
+        """
+        View unit
+        """
+        return self._unit_converter.target
+
 
 class TimeseriesView(ParameterInfo):  # pylint: disable=too-many-instance-attributes
     """

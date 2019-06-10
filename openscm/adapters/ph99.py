@@ -35,13 +35,17 @@ class PH99(Adapter):
 
     _openscm_standard_parameter_mappings = {
         "Equilibrium Climate Sensitivity": "_ecs",
-        "Radiative Forcing 2xCO2": "_f2xco2",
-        "Start Time": "time_start",
-        "Step Length": "timestep",
+        "Radiative Forcing 2xCO2": "_rf2xco2",
+        "Start Time": "_time_start",
+        "Step Length": "_timestep",
+        ("Emissions", "CO2"): "_emissions",
+    }
+
+    _openscm_output_mappings = {
+        ("Emissions", "CO2"): "emissions",
         ("Atmospheric Concentrations", "CO2"): "concentrations",
         ("Cumulative Emissions", "CO2"): "cumulative_emissions",
-        ("Emissions", "CO2"): "emissions",
-        ("Surface Temperature Increase"): "temperatures",
+        "Surface Temperature Increase": "temperatures",
     }
 
     _internal_timeseries_conventions = {
@@ -118,11 +122,55 @@ class PH99(Adapter):
                         else:
                             self._add_parameter_view(openscm_name, unit=str(value.units))
 
-        # set a stop time because PH99 model doesn't have one
+        for openscm_name, self_att in self._openscm_standard_parameter_mappings.items():
+            value = getattr(self, self_att)
+            try:
+                if isinstance(value.magnitude, np.ndarray):
+                    model_name = self_att[1:]
+                    self._add_parameter_view(
+                        openscm_name,
+                        unit=str(value.units),
+                        timeseries_type=self._internal_timeseries_conventions[model_name]
+                    )
+                else:
+                    self._add_parameter_view(
+                        openscm_name,
+                        unit=str(value.units),
+                    )
+            except AttributeError:
+                self._add_parameter_view(openscm_name)
+
+        # set a stop time because PH99 model doesn't have one, probably shouldn't do this
+        # implicitly...
         self._add_parameter_view("Stop Time")
         if self._parameter_views["Stop Time"].empty:
             self._parameter_views["Stop Time"].value = self._start_time + 500*self._period_length
 
+    def _get_view_iterator(self):
+        view_iterator = self._parameter_views.items()
+        view_iterator = sorted(view_iterator, key=lambda s: len(s[0]))
+        generic_views = [
+            v for v in view_iterator 
+            if v[1].parameter_type == ParameterType.GENERIC
+        ]
+        scalar_views_model = [
+            v for v in view_iterator 
+            if v[1].parameter_type == ParameterType.SCALAR and isinstance(v[0], tuple) and len(v[0]) > 1
+        ]
+        scalar_views_openscm = [
+            v for v in view_iterator 
+            if v[1].parameter_type == ParameterType.SCALAR and (not isinstance(v[0], tuple) or len(v[0]) == 1)
+        ]
+        scalar_views_openscm = sorted(  # ensure ECS considered before Radiative Forcing 2xCO2
+            scalar_views_openscm, 
+            key=lambda s: s[0], 
+            reverse=False
+        )
+        other_views = [
+            v for v in view_iterator 
+            if v[1].parameter_type not in (ParameterType.GENERIC, ParameterType.SCALAR)
+        ]
+        return generic_views + scalar_views_model + scalar_views_openscm + other_views
 
     def _get_time_points(self, timeseries_type: Union[ParameterType, str]) -> np.ndarray:
         if self._timeseries_time_points_require_update():
@@ -189,7 +237,7 @@ class PH99(Adapter):
             if self._parameter_views[n].version > self._parameter_versions[n]:
                 return True
             if n in self._openscm_standard_parameter_mappings:
-                model_n = (self.name, self._openscm_standard_parameter_mappings[n])
+                model_n = (self.name, self._openscm_standard_parameter_mappings[n][1:])
                 if self._parameter_views[model_n].version > self._parameter_versions[model_n]:
                     return True
         return False 
@@ -200,9 +248,7 @@ class PH99(Adapter):
             if name == "Stop Time":
                 pass
             elif name in self._openscm_standard_parameter_mappings:
-                model_name = self._openscm_standard_parameter_mappings[name]
-                self._check_derived_paras([(self.name, model_name)], name)
-                self._set_model_para_from_openscm_para(model_name, name, value, para.unit)
+                self._set_model_para_from_openscm_para(name, value, para.unit)
             else:
                 assert name[0] == self.name, "..."
                 setattr(self.model, name[1], value*_unit_registry(para.unit))
@@ -210,26 +256,86 @@ class PH99(Adapter):
         except ParameterEmptyError:
             pass
 
-    def _set_model_para_from_openscm_para(self, model_name, openscm_name, value, unit):
-        if openscm_name == "Start Time":
-            value = (value - self._base_time).item().total_seconds()
-            unit = "s"
+    def _set_model_para_from_openscm_para(self, openscm_name, value, unit):
+        model_name = self._openscm_standard_parameter_mappings[openscm_name]
+        if unit is not None:
+            pv = value * _unit_registry(unit)
+        else:
+            pv = value
 
-        setattr(self.model, model_name, value*_unit_registry(unit))
+        setattr(self, model_name, pv)
 
-    def _set_default_value(self, name, value):
-        if name == ("PH99", "timestep"):
-            units = "s"
-            mag = int(value.to(units).magnitude)
-            self._parameters.scalar(name, "s").value = int(mag)
-            if int(self.model.timestep.magnitude) != int(mag):
-                warnings.warn("Rounding {} timestep to nearest integer".format(self.name))
-                self.model.timestep = mag * _unit_registry("s")  # ensure we use integer steps to be OpenSCM compatible
-            return
+    @property
+    def _ecs(self):
+        return self.model.mu * np.log(2) / self.model.alpha
 
-        p = self._parameters.scalar(name, str(value.units))
-        if p.empty:
-            p.value = value.magnitude
+    @_ecs.setter
+    def _ecs(self, v):
+        self._check_derived_paras(
+            [(self.name, "alpha")],
+            self._inverse_openscm_standard_parameter_mappings["_ecs"]
+        )
+
+        mu = self._parameter_views[(self.name, "mu")]
+        mu = mu.value * _unit_registry(mu.unit)
+
+        alpha = mu * np.log(2) / v
+        self.model.alpha = alpha
+
+    @property
+    def _rf2xco2(self):
+        return self.model.mu * self._hc_per_m2_approx
+
+    @_rf2xco2.setter
+    def _rf2xco2(self, v):
+        self._check_derived_paras(
+            [(self.name, "mu"), (self.name, "alpha")],
+            self._inverse_openscm_standard_parameter_mappings["_rf2xco2"]
+        )
+
+        mu = v / self._hc_per_m2_approx
+        alpha = mu * np.log(2) / self._ecs
+
+        self.model.mu = mu
+        self.model.alpha = alpha
+
+    @property
+    def _time_start(self):
+        v = self.model.time_start.to("s").magnitude
+        assert int(v) == v, "..."
+        return self._base_time + np.timedelta64(int(v), "s")
+
+    @_time_start.setter
+    def _time_start(self, v):
+        v = int((v - self._base_time).item().total_seconds())
+        self.model.time_start = v * _unit_registry("s")
+
+    @property
+    def _timestep(self):
+        v = self.model.timestep.to("s").magnitude
+        assert int(v) == v, "..."
+        return np.timedelta64(int(v), "s")
+
+    @_timestep.setter
+    def _timestep(self, v):
+        import pdb
+        pdb.set_trace()
+        v = self.model.time_start.to("s").magnitude
+        assert int(v) == v, "..."
+        return self._base_time + np.timedelta64(int(v), "s")
+
+    @property
+    def _emissions(self):
+        return self.model.emissions
+
+    @_emissions.setter
+    def _emissions(self, v):
+        self.model.emissions = v
+
+
+
+
+
 
 
 
@@ -267,48 +373,6 @@ class PH99(Adapter):
         else:
             self._set_model_parameter("Radiative Forcing 2xCO2", rf2xco2.value * _unit_registry("W/m^2"))
 
-
-
-    def _set_model_parameter(self, para_name, value):
-        if para_name == "Equilibrium Climate Sensitivity":
-            # TODO: decide how to handle contradiction in a more sophisticated way
-            alpha_val = getattr(self.model, "mu") * np.log(2) / value
-            warnings.warn(
-                "Updating Equilibrium Climate Sensitivity also updates alpha"
-            )
-            self._update_model_parameter_and_parameterset("alpha", alpha_val)
-
-            return
-
-        if para_name == "Radiative Forcing 2xCO2":
-            # TODO: decide how to handle contradiction in a more sophisticated way
-            mu_val = (value / self._hc_per_m2_approx).to(self.model.mu.units)
-            warnings.warn("Updating Radiative Forcing 2xCO2 also updates mu")
-            self._update_model_parameter_and_parameterset("mu", mu_val)
-
-            # reset alpha too as it depends on mu
-            alpha_val = getattr(self.model, "mu") * np.log(2) / self._ecs
-            warnings.warn("Updating rf2xco2 also updates alpha")
-            self._update_model_parameter_and_parameterset("alpha", alpha_val)
-
-            return
-
-        try:
-            # TODO: make this easier
-            value = value
-            setattr(
-                self.model, para_name, value.to(getattr(self.model, para_name).units)
-            )
-        except AttributeError:
-            # TODO: make this more controlled elsewhere
-            warnings.warn("Not using {}".format(para_name))
-
-    def _update_model_parameter_and_parameterset(self, para_name, value):
-        setattr(self.model, para_name, value.to(getattr(self.model, para_name).units))
-        self._parameters.scalar(
-            ("PH99", para_name), str(value.units), region=("World",)
-        ).value = value.magnitude
-
     def _reset(self) -> None:
         if self._parameter_views[(self.name, "emissions")].empty and self._parameter_views[("Emissions", "CO2")].empty:
             raise ParameterEmptyError("{} requires ('Emissions', 'CO2') in order to run".format(self.name))
@@ -320,7 +384,8 @@ class PH99(Adapter):
         self.model.initialise_timeseries()
         self.model.run()
 
-        imap = self._inverse_openscm_standard_parameter_mappings
+        imap = {v: k for k, v in self._openscm_output_mappings.items()}
+        self._inverse_openscm_standard_parameter_mappings
         for att in dir(self.model):
             # all time parameters captured in parameterset output
             if not att.startswith(("_", "time", "emissions_idx")):

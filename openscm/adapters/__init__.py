@@ -121,7 +121,7 @@ class Adapter(metaclass=ABCMeta):
         if value is not None and (p.empty or overwrite):
             # match parameterview to value
             self._set_parameter_value(p, value)
-        elif not p.empty and (time_points is not None and timeseries_type in (ParameterType.POINT_TIMESERIES, ParameterType.AVERAGE_TIMESERIES)):
+        elif not p.empty and (time_points is not None or timeseries_type is None):
             # match model to parameter view
             self._update_model(full_name, p)
 
