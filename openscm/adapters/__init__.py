@@ -306,6 +306,12 @@ class Adapter(metaclass=ABCMeta):
         Name of the model as used in OpenSCM parameters
         """
 
+    @abstractproperty
+    def _start_time(self):
+        """
+        Start time of the run
+        """
+
 
 def load_adapter(name: str) -> type:
     """

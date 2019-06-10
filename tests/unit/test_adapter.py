@@ -16,11 +16,10 @@ def test_adapter_base_class_init():
 def test_adapter_base_class_run():
     start_time = 20
 
+    Adapter._start_time = start_time
     Adapter.__abstractmethods__ = set()
-    in_parameters = ParameterSet()
-    in_parameters.generic("Start Time").value = start_time
     adapter = Adapter(  # pylint: disable=abstract-class-instantiated
-        in_parameters, ParameterSet()
+        ParameterSet(), ParameterSet()
     )
 
     adapter.reset()

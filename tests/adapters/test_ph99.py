@@ -286,7 +286,7 @@ class TestPH99Adapter(_AdapterTester):
         ).values
         np.testing.assert_allclose(
             temp_2017_2018,
-            np.array([0.5240462684400263, 0.5296034389009026]),
+            np.array([15.287940924032506, 15.295187697329503]),
             rtol=1e-5,
         )
 

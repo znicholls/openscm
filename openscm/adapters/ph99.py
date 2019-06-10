@@ -268,61 +268,6 @@ class PH99(Adapter):
             self._set_model_parameter("Radiative Forcing 2xCO2", rf2xco2.value * _unit_registry("W/m^2"))
 
 
-    def _initialize_model_input(self) -> None:
-        pass
-
-    def _initialize_run_parameters(self) -> None:
-        # TODO: make this easier
-        for (
-            key,
-            value,
-        ) in (
-            self._parameters._root._parameters.items()  # pylint: disable=protected-access
-        ):
-            try:
-                value.data  # pylint: disable=protected-access
-            except AttributeError:
-                continue
-            if key == "Start Time":
-                self.model.time_start = (value.data - self._base_time).item().total_seconds() * _unit_registry("s")
-                continue
-            if key == "Stop Time":
-                continue  # set below
-
-            self._set_model_parameter(key, value.data * _unit_registry(value.unit))
-
-        start_time = self._parameters.generic("Start Time").value
-        stop_time = self._parameters.generic("Stop Time").value
-        timestep_count = int(
-            (stop_time - start_time).item().total_seconds()
-            // int(self.model.timestep.to("s").magnitude)
-            + 1
-        )
-
-        time_points = create_time_points(
-            start_time,
-            np.timedelta64(int(self.model.timestep.to("s").magnitude), "s"),
-            timestep_count,
-            timeseries_type="average",
-        )
-
-        emms_units = self.model.emissions.units
-        try:
-            self.model.emissions = (
-                self._parameters.timeseries(
-                    ("Emissions", "CO2"),
-                    str(emms_units),
-                    time_points,
-                    region=("World",),
-                    timeseries_type="average",
-                    interpolation="linear",
-                ).values
-                * emms_units
-            )
-        except ParameterEmptyError:
-            raise ParameterEmptyError(
-                "PH99 requires ('Emissions', 'CO2') in order to run"
-            )
 
     def _set_model_parameter(self, para_name, value):
         if para_name == "Equilibrium Climate Sensitivity":
@@ -365,9 +310,8 @@ class PH99(Adapter):
         ).value = value.magnitude
 
     def _reset(self) -> None:
-        # reset to whatever is in the views of self
-        # probably requires a parameters and a timeseries list/method to get it...
-        pass
+        if self._parameter_views[(self.name, "emissions")].empty and self._parameter_views[("Emissions", "CO2")].empty:
+            raise ParameterEmptyError("{} requires ('Emissions', 'CO2') in order to run".format(self.name))
 
     def _shutdown(self) -> None:
         pass
